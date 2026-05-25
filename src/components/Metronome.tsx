@@ -1,85 +1,110 @@
+"use client";
+
 import { useState, useEffect, useRef, useCallback } from "react";
+
+type SoundId = "click" | "wood" | "hi_hat" | "rim";
 
 // ─── Audio Engine ───────────────────────────────────────────────────────────
 function createAudioEngine() {
-  let ctx = null;
+  let ctx: AudioContext | null = null;
   let nextBeatTime = 0;
   let currentBeat = 0;
-  let schedulerTimer = null;
+  let schedulerTimer: ReturnType<typeof setTimeout> | null = null;
   let bpm = 120;
   let beatsPerBar = 4;
-  let soundType = "click";
-  let onBeat = null;
+  let soundType: SoundId = "click";
+  let onBeat: ((beatIndex: number) => void) | null = null;
 
   const LOOKAHEAD = 25; // ms
   const SCHEDULE_AHEAD = 0.1; // seconds
 
-  function getCtx() {
-    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  function getCtx(): AudioContext {
+    if (!ctx) {
+      const Ctor =
+        window.AudioContext ??
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (!Ctor) throw new Error("Web Audio API not supported");
+      ctx = new Ctor();
+    }
     return ctx;
   }
 
-  function playClick(time, isAccent) {
+  function playClick(time: number, isAccent: boolean) {
     const c = getCtx();
-    const sounds = {
+    const sounds: Record<SoundId, () => void> = {
       click: () => {
         const osc = c.createOscillator();
         const gain = c.createGain();
-        osc.connect(gain); gain.connect(c.destination);
+        osc.connect(gain);
+        gain.connect(c.destination);
         osc.frequency.value = isAccent ? 1800 : 1200;
         gain.gain.setValueAtTime(isAccent ? 0.9 : 0.6, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
-        osc.start(time); osc.stop(time + 0.05);
+        osc.start(time);
+        osc.stop(time + 0.05);
       },
       wood: () => {
         const buf = c.createBuffer(1, c.sampleRate * 0.05, c.sampleRate);
         const data = buf.getChannelData(0);
-        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
+        for (let i = 0; i < data.length; i++)
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
         const src = c.createBufferSource();
         const gain = c.createGain();
         const filter = c.createBiquadFilter();
-        filter.type = "bandpass"; filter.frequency.value = isAccent ? 900 : 600; filter.Q.value = 8;
+        filter.type = "bandpass";
+        filter.frequency.value = isAccent ? 900 : 600;
+        filter.Q.value = 8;
         src.buffer = buf;
-        src.connect(filter); filter.connect(gain); gain.connect(c.destination);
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(c.destination);
         gain.gain.setValueAtTime(isAccent ? 1.2 : 0.8, time);
         src.start(time);
       },
       hi_hat: () => {
         const buf = c.createBuffer(1, c.sampleRate * 0.06, c.sampleRate);
         const data = buf.getChannelData(0);
-        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 4);
+        for (let i = 0; i < data.length; i++)
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 4);
         const src = c.createBufferSource();
         const gain = c.createGain();
         const filter = c.createBiquadFilter();
-        filter.type = "highpass"; filter.frequency.value = 7000;
+        filter.type = "highpass";
+        filter.frequency.value = 7000;
         src.buffer = buf;
-        src.connect(filter); filter.connect(gain); gain.connect(c.destination);
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(c.destination);
         gain.gain.setValueAtTime(isAccent ? 0.8 : 0.5, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
         src.start(time);
       },
       rim: () => {
         const c2 = getCtx();
-        // Tone component
         const osc = c2.createOscillator();
         const oscGain = c2.createGain();
         osc.frequency.value = isAccent ? 400 : 320;
-        osc.connect(oscGain); oscGain.connect(c2.destination);
+        osc.connect(oscGain);
+        oscGain.connect(c2.destination);
         oscGain.gain.setValueAtTime(isAccent ? 0.6 : 0.4, time);
         oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
-        osc.start(time); osc.stop(time + 0.03);
-        // Noise component
+        osc.start(time);
+        osc.stop(time + 0.03);
         const buf = c2.createBuffer(1, c2.sampleRate * 0.03, c2.sampleRate);
-        const data = buf.getChannelData(0);
-        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 6);
+        const noise = buf.getChannelData(0);
+        for (let i = 0; i < noise.length; i++)
+          noise[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / noise.length, 6);
         const src = c2.createBufferSource();
         const nGain = c2.createGain();
-        src.buffer = buf; src.connect(nGain); nGain.connect(c2.destination);
+        src.buffer = buf;
+        src.connect(nGain);
+        nGain.connect(c2.destination);
         nGain.gain.setValueAtTime(isAccent ? 0.5 : 0.3, time);
         src.start(time);
-      }
+      },
     };
-    (sounds[soundType] || sounds.click)();
+    (sounds[soundType] ?? sounds.click)();
   }
 
   function scheduleBeats() {
@@ -90,9 +115,10 @@ function createAudioEngine() {
       const scheduledTime = nextBeatTime;
       playClick(scheduledTime, isAccent);
 
-      // Fire visual callback near the beat
       const delay = Math.max(0, (scheduledTime - c.currentTime) * 1000);
-      setTimeout(() => { if (onBeat) onBeat(beatIndex); }, delay);
+      setTimeout(() => {
+        onBeat?.(beatIndex);
+      }, delay);
 
       currentBeat = (currentBeat + 1) % beatsPerBar;
       nextBeatTime += 60.0 / bpm;
@@ -101,10 +127,18 @@ function createAudioEngine() {
   }
 
   return {
-    start(b, beats, sound, callback) {
-      bpm = b; beatsPerBar = beats; soundType = sound; onBeat = callback;
+    start(
+      b: number,
+      beats: number,
+      sound: SoundId,
+      callback: (beatIndex: number) => void,
+    ) {
+      bpm = b;
+      beatsPerBar = beats;
+      soundType = sound;
+      onBeat = callback;
       const c = getCtx();
-      if (c.state === "suspended") c.resume();
+      if (c.state === "suspended") void c.resume();
       currentBeat = 0;
       nextBeatTime = c.currentTime + 0.05;
       scheduleBeats();
@@ -113,53 +147,62 @@ function createAudioEngine() {
       if (schedulerTimer) clearTimeout(schedulerTimer);
       schedulerTimer = null;
     },
-    setBpm(b) { bpm = b; },
-    setBeats(b) { beatsPerBar = b; currentBeat = 0; },
-    setSound(s) { soundType = s; },
+    setBpm(b: number) {
+      bpm = b;
+    },
+    setBeats(b: number) {
+      beatsPerBar = b;
+      currentBeat = 0;
+    },
+    setSound(s: SoundId) {
+      soundType = s;
+    },
   };
 }
 
 const engine = createAudioEngine();
 
 // ─── Tap Tempo ───────────────────────────────────────────────────────────────
-function useTapTempo(onTap) {
-  const taps = useRef([]);
+function useTapTempo(onTap: (bpm: number) => void) {
+  const taps = useRef<number[]>([]);
   return useCallback(() => {
     const now = Date.now();
-    taps.current = taps.current.filter(t => now - t < 3000);
+    taps.current = taps.current.filter((t) => now - t < 3000);
     taps.current.push(now);
     if (taps.current.length >= 2) {
       const intervals = taps.current.slice(1).map((t, i) => t - taps.current[i]);
       const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-      const bpm = Math.round(60000 / avg);
-      onTap(Math.min(300, Math.max(20, bpm)));
+      const next = Math.round(60000 / avg);
+      onTap(Math.min(300, Math.max(20, next)));
     }
   }, [onTap]);
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
-const SOUNDS = [
+const SOUNDS: { id: SoundId; label: string }[] = [
   { id: "click", label: "Click" },
   { id: "wood", label: "Wood" },
   { id: "hi_hat", label: "Hi-Hat" },
   { id: "rim", label: "Rimshot" },
 ];
 
-const TIME_SIGS = [2, 3, 4, 5, 6, 7];
+const TIME_SIGS = [2, 3, 4, 5, 6, 7] as const;
 
 export default function Metronome() {
   const [bpm, setBpm] = useState(100);
   const [playing, setPlaying] = useState(false);
   const [beats, setBeats] = useState(4);
-  const [sound, setSound] = useState("click");
+  const [sound, setSound] = useState<SoundId>("click");
   const [activeBeat, setActiveBeat] = useState(-1);
   const [dragging, setDragging] = useState(false);
-  const dragStart = useRef(null);
+  const dragStart = useRef<{ y: number; bpm: number } | null>(null);
   const bpmRef = useRef(bpm);
 
-  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => {
+    bpmRef.current = bpm;
+  }, [bpm]);
 
-  const handleBeat = useCallback((beatIndex) => {
+  const handleBeat = useCallback((beatIndex: number) => {
     setActiveBeat(beatIndex);
     setTimeout(() => setActiveBeat(-1), 80);
   }, []);
@@ -169,32 +212,41 @@ export default function Metronome() {
       engine.start(bpm, beats, sound, handleBeat);
     } else {
       engine.stop();
-      setActiveBeat(-1);
     }
     return () => engine.stop();
+    // Only `playing` should restart the scheduler; bpm / beats / sound update via engine.set* in other effects.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
 
-  useEffect(() => { if (playing) engine.setBpm(bpm); }, [bpm, playing]);
-  useEffect(() => { if (playing) engine.setBeats(beats); }, [beats, playing]);
-  useEffect(() => { if (playing) engine.setSound(sound); }, [sound, playing]);
+  useEffect(() => {
+    if (playing) engine.setBpm(bpm);
+  }, [bpm, playing]);
+  useEffect(() => {
+    if (playing) engine.setBeats(beats);
+  }, [beats, playing]);
+  useEffect(() => {
+    if (playing) engine.setSound(sound);
+  }, [sound, playing]);
 
   const handleTap = useTapTempo((tappedBpm) => {
     setBpm(tappedBpm);
     if (playing) engine.setBpm(tappedBpm);
   });
 
-  // BPM drag
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     dragStart.current = { y: e.clientY, bpm: bpmRef.current };
     setDragging(true);
   };
-  const handleMouseMove = useCallback((e) => {
-    if (!dragStart.current) return;
-    const delta = Math.round((dragStart.current.y - e.clientY) / 2);
-    const newBpm = Math.min(300, Math.max(20, dragStart.current.bpm + delta));
-    setBpm(newBpm);
-    if (playing) engine.setBpm(newBpm);
-  }, [playing]);
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!dragStart.current) return;
+      const delta = Math.round((dragStart.current.y - e.clientY) / 2);
+      const newBpm = Math.min(300, Math.max(20, dragStart.current.bpm + delta));
+      setBpm(newBpm);
+      if (playing) engine.setBpm(newBpm);
+    },
+    [playing],
+  );
   const handleMouseUp = useCallback(() => {
     dragStart.current = null;
     setDragging(false);
@@ -211,11 +263,10 @@ export default function Metronome() {
     };
   }, [dragging, handleMouseMove, handleMouseUp]);
 
-  // Touch drag for BPM
-  const handleTouchStart = (e) => {
+  const handleTouchStart = (e: React.TouchEvent) => {
     dragStart.current = { y: e.touches[0].clientY, bpm: bpmRef.current };
   };
-  const handleTouchMove = (e) => {
+  const handleTouchMove = (e: React.TouchEvent) => {
     if (!dragStart.current) return;
     const delta = Math.round((dragStart.current.y - e.touches[0].clientY) / 2);
     const newBpm = Math.min(300, Math.max(20, dragStart.current.bpm + delta));
@@ -223,20 +274,35 @@ export default function Metronome() {
     if (playing) engine.setBpm(newBpm);
   };
 
-  const tempoLabel = bpm < 60 ? "Larghetto" : bpm < 76 ? "Andante" : bpm < 108 ? "Moderato" : bpm < 132 ? "Allegro" : bpm < 168 ? "Presto" : "Prestissimo";
+  const tempoLabel =
+    bpm < 60
+      ? "Larghetto"
+      : bpm < 76
+        ? "Andante"
+        : bpm < 108
+          ? "Moderato"
+          : bpm < 132
+            ? "Allegro"
+            : bpm < 168
+              ? "Presto"
+              : "Prestissimo";
+
+  const highlightedBeat = playing ? activeBeat : -1;
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#0e0e0f",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      fontFamily: "'DM Mono', 'Courier New', monospace",
-      padding: "24px",
-      userSelect: "none",
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0e0e0f",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "'DM Mono', 'Courier New', monospace",
+        padding: "24px",
+        userSelect: "none",
+      }}
+    >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
         * { box-sizing: border-box; }
@@ -252,68 +318,110 @@ export default function Metronome() {
         .time-btn:hover { border-color: #e8e0d0 !important; color: #e8e0d0 !important; }
       `}</style>
 
-      {/* Header */}
       <div style={{ marginBottom: 40, textAlign: "center" }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 6, color: "#555", marginBottom: 4 }}>
+        <div
+          style={{
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 13,
+            letterSpacing: 6,
+            color: "#555",
+            marginBottom: 4,
+          }}
+        >
           POCKET CLICK
         </div>
       </div>
 
-      {/* BPM Display */}
       <div
         className="bpm-display"
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         style={{
-          display: "flex", flexDirection: "column", alignItems: "center",
-          marginBottom: 8, padding: "16px 48px", borderRadius: 4,
-          background: "#141416", border: "1px solid #222",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          marginBottom: 8,
+          padding: "16px 48px",
+          borderRadius: 4,
+          background: "#141416",
+          border: "1px solid #222",
         }}
       >
-        <div style={{
-          fontFamily: "'Bebas Neue', sans-serif",
-          fontSize: 96, lineHeight: 1, letterSpacing: 2,
-          color: playing ? "#e8c97a" : "#e8e0d0",
-          transition: "color 0.2s",
-          minWidth: 200, textAlign: "center",
-        }}>
+        <div
+          style={{
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: 96,
+            lineHeight: 1,
+            letterSpacing: 2,
+            color: playing ? "#e8c97a" : "#e8e0d0",
+            transition: "color 0.2s",
+            minWidth: 200,
+            textAlign: "center",
+          }}
+        >
           {bpm}
         </div>
-        <div style={{ fontSize: 11, letterSpacing: 4, color: "#444", marginTop: 2, fontFamily: "'DM Mono', monospace" }}>
+        <div
+          style={{
+            fontSize: 11,
+            letterSpacing: 4,
+            color: "#444",
+            marginTop: 2,
+            fontFamily: "'DM Mono', monospace",
+          }}
+        >
           BPM — DRAG TO ADJUST
         </div>
       </div>
-      <div style={{ fontSize: 11, color: "#555", letterSpacing: 3, marginBottom: 36, fontFamily: "'DM Mono', monospace" }}>
+      <div
+        style={{
+          fontSize: 11,
+          color: "#555",
+          letterSpacing: 3,
+          marginBottom: 36,
+          fontFamily: "'DM Mono', monospace",
+        }}
+      >
         {tempoLabel.toUpperCase()}
       </div>
 
-      {/* BPM nudge buttons */}
       <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
-        {[-10, -1, +1, +10].map(d => (
+        {([-10, -1, 1, 10] as const).map((d) => (
           <button
             key={d}
+            type="button"
             onClick={() => {
               const n = Math.min(300, Math.max(20, bpm + d));
               setBpm(n);
               if (playing) engine.setBpm(n);
             }}
             style={{
-              background: "#141416", border: "1px solid #2a2a2c",
-              color: "#888", fontFamily: "'DM Mono', monospace",
-              fontSize: 12, padding: "8px 14px", borderRadius: 3,
-              cursor: "pointer", letterSpacing: 1,
+              background: "#141416",
+              border: "1px solid #2a2a2c",
+              color: "#888",
+              fontFamily: "'DM Mono', monospace",
+              fontSize: 12,
+              padding: "8px 14px",
+              borderRadius: 3,
+              cursor: "pointer",
+              letterSpacing: 1,
               transition: "all 0.1s",
             }}
-            onMouseEnter={e => { e.target.style.color = "#e8e0d0"; e.target.style.borderColor = "#444"; }}
-            onMouseLeave={e => { e.target.style.color = "#888"; e.target.style.borderColor = "#2a2a2c"; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "#e8e0d0";
+              e.currentTarget.style.borderColor = "#444";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "#888";
+              e.currentTarget.style.borderColor = "#2a2a2c";
+            }}
           >
             {d > 0 ? `+${d}` : d}
           </button>
         ))}
       </div>
 
-      {/* Beat indicators */}
       <div style={{ display: "flex", gap: 10, marginBottom: 40 }}>
         {Array.from({ length: beats }).map((_, i) => (
           <div
@@ -323,87 +431,135 @@ export default function Metronome() {
               width: i === 0 ? 18 : 14,
               height: i === 0 ? 18 : 14,
               borderRadius: "50%",
-              background: activeBeat === i
-                ? i === 0 ? "#e8c97a" : "#888"
-                : "#1e1e20",
+              background:
+                highlightedBeat === i
+                  ? i === 0
+                    ? "#e8c97a"
+                    : "#888"
+                  : "#1e1e20",
               border: `1px solid ${i === 0 ? "#444" : "#2a2a2c"}`,
-              boxShadow: activeBeat === i
-                ? i === 0 ? "0 0 12px #e8c97a88" : "0 0 8px #55555588"
-                : "none",
+              boxShadow:
+                highlightedBeat === i
+                  ? i === 0
+                    ? "0 0 12px #e8c97a88"
+                    : "0 0 8px #55555588"
+                  : "none",
               marginTop: i === 0 ? 0 : 2,
             }}
           />
         ))}
       </div>
 
-      {/* Play / Tap row */}
       <div style={{ display: "flex", gap: 12, marginBottom: 36 }}>
         <button
+          type="button"
           className="tap-btn"
           onClick={handleTap}
           style={{
-            background: "#141416", border: "1px solid #2a2a2c",
-            color: "#888", fontFamily: "'DM Mono', monospace",
-            fontSize: 11, letterSpacing: 3,
-            padding: "14px 22px", borderRadius: 3,
-            cursor: "pointer", transition: "all 0.1s",
+            background: "#141416",
+            border: "1px solid #2a2a2c",
+            color: "#888",
+            fontFamily: "'DM Mono', monospace",
+            fontSize: 11,
+            letterSpacing: 3,
+            padding: "14px 22px",
+            borderRadius: 3,
+            cursor: "pointer",
+            transition: "all 0.1s",
           }}
-          onMouseEnter={e => { e.target.style.color = "#e8e0d0"; e.target.style.borderColor = "#444"; }}
-          onMouseLeave={e => { e.target.style.color = "#888"; e.target.style.borderColor = "#2a2a2c"; }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "#e8e0d0";
+            e.currentTarget.style.borderColor = "#444";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "#888";
+            e.currentTarget.style.borderColor = "#2a2a2c";
+          }}
         >
           TAP
         </button>
 
         <button
+          type="button"
           className="play-btn"
-          onClick={() => setPlaying(p => !p)}
+          onClick={() => setPlaying((p) => !p)}
           style={{
-            width: 88, height: 52,
+            width: 88,
+            height: 52,
             background: playing ? "#e8c97a" : "#1e1e20",
             border: playing ? "1px solid #e8c97a" : "1px solid #333",
-            borderRadius: 3, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            borderRadius: 3,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             transition: "all 0.15s",
           }}
         >
           {playing ? (
-            // Pause icon
             <div style={{ display: "flex", gap: 5 }}>
-              <div style={{ width: 4, height: 18, background: "#0e0e0f", borderRadius: 1 }} />
-              <div style={{ width: 4, height: 18, background: "#0e0e0f", borderRadius: 1 }} />
+              <div
+                style={{
+                  width: 4,
+                  height: 18,
+                  background: "#0e0e0f",
+                  borderRadius: 1,
+                }}
+              />
+              <div
+                style={{
+                  width: 4,
+                  height: 18,
+                  background: "#0e0e0f",
+                  borderRadius: 1,
+                }}
+              />
             </div>
           ) : (
-            // Play icon
-            <div style={{
-              width: 0, height: 0,
-              borderTop: "10px solid transparent",
-              borderBottom: "10px solid transparent",
-              borderLeft: "18px solid #e8e0d0",
-              marginLeft: 4,
-            }} />
+            <div
+              style={{
+                width: 0,
+                height: 0,
+                borderTop: "10px solid transparent",
+                borderBottom: "10px solid transparent",
+                borderLeft: "18px solid #e8e0d0",
+                marginLeft: 4,
+              }}
+            />
           )}
         </button>
       </div>
 
-      {/* Time signature */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 10, letterSpacing: 4, color: "#444", marginBottom: 10, textAlign: "center" }}>
+        <div
+          style={{
+            fontSize: 10,
+            letterSpacing: 4,
+            color: "#444",
+            marginBottom: 10,
+            textAlign: "center",
+          }}
+        >
           BEATS PER BAR
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          {TIME_SIGS.map(n => (
+          {TIME_SIGS.map((n) => (
             <button
               key={n}
+              type="button"
               className="time-btn"
               onClick={() => setBeats(n)}
               style={{
-                width: 36, height: 36,
+                width: 36,
+                height: 36,
                 background: beats === n ? "#e8c97a" : "#141416",
                 border: `1px solid ${beats === n ? "#e8c97a" : "#2a2a2c"}`,
                 color: beats === n ? "#0e0e0f" : "#666",
                 fontFamily: "'DM Mono', monospace",
-                fontSize: 13, fontWeight: 500,
-                borderRadius: 3, cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 500,
+                borderRadius: 3,
+                cursor: "pointer",
                 transition: "all 0.12s",
               }}
             >
@@ -413,15 +569,23 @@ export default function Metronome() {
         </div>
       </div>
 
-      {/* Sound selector */}
       <div>
-        <div style={{ fontSize: 10, letterSpacing: 4, color: "#444", marginBottom: 10, textAlign: "center" }}>
+        <div
+          style={{
+            fontSize: 10,
+            letterSpacing: 4,
+            color: "#444",
+            marginBottom: 10,
+            textAlign: "center",
+          }}
+        >
           SOUND
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          {SOUNDS.map(s => (
+          {SOUNDS.map((s) => (
             <button
               key={s.id}
+              type="button"
               className="btn-sound"
               onClick={() => setSound(s.id)}
               style={{
@@ -430,8 +594,10 @@ export default function Metronome() {
                 border: `1px solid ${sound === s.id ? "#e8c97a" : "#2a2a2c"}`,
                 color: sound === s.id ? "#0e0e0f" : "#666",
                 fontFamily: "'DM Mono', monospace",
-                fontSize: 10, letterSpacing: 2,
-                borderRadius: 3, cursor: "pointer",
+                fontSize: 10,
+                letterSpacing: 2,
+                borderRadius: 3,
+                cursor: "pointer",
                 transition: "all 0.12s",
               }}
             >
@@ -441,8 +607,14 @@ export default function Metronome() {
         </div>
       </div>
 
-      {/* Footer */}
-      <div style={{ marginTop: 48, fontSize: 10, color: "#2a2a2c", letterSpacing: 3 }}>
+      <div
+        style={{
+          marginTop: 48,
+          fontSize: 10,
+          color: "#2a2a2c",
+          letterSpacing: 3,
+        }}
+      >
         POCKET CLICK — NO ADS. NO BS.
       </div>
     </div>

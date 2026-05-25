@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* App shell matches metronome UI; component still sets its own full-viewport background. */
+body {
+  margin: 0;
+}

@@ -2,7 +2,18 @@
 
 A **personal-use metronome**: no ads, no sign-up, no in-app purchases, no social layer. The goal is **tight timing**, **clear visuals**, and **a small set of sounds** that feel like **studio gear** (dark UI, restrained typography, high contrast) rather than a consumer “app store” product.
 
-This folder currently holds the **React prototype** in `metronome.jsx` and this README as the **parked spec** for when you pick the project back up.
+This repo is a **Next.js (App Router)** app. The metronome UI and audio engine live in **`src/components/Metronome.tsx`**. The sections below are the **product spec**; use them when extending features.
+
+---
+
+## Development (Next.js)
+
+```bash
+npm install   # already done if you cloned after scaffold
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). Production build: `npm run build` then `npm start`.
 
 ---
 
@@ -45,7 +56,7 @@ This folder currently holds the **React prototype** in `metronome.jsx` and this 
 - **Inputs (keep minimal):** **Start BPM**, **end BPM**, and either **total duration** of the ramp or a fixed **increment** (e.g. +1 BPM every N bars or every N seconds — choose **one** primary model in the UI so it does not sprawl).
 - **Explicit non-goals:** No **program builder**: multiple stages, named presets, save slots, or shareable routines. That line is “metronome plus” bloat; crossing it turns this into workout-app UX.
 
-**Engine note:** The prototype already exposes `engine.setBpm` while running; progression is mostly **state + timing** (when to nudge BPM), reusing the same Web Audio scheduler. Watch edge cases when **end BPM** is below **start BPM** (descending ramp) if you allow it; otherwise forbid or auto-swap with clear UI.
+**Engine note:** The engine exposes `setBpm` while running; progression is mostly **state + timing** (when to nudge BPM), reusing the same Web Audio scheduler. Watch edge cases when **end BPM** is below **start BPM** (descending ramp) if you allow it; otherwise forbid or auto-swap with clear UI.
 
 ### Stretch (still “simple,” but harder)
 
@@ -57,13 +68,11 @@ This folder currently holds the **React prototype** in `metronome.jsx` and this 
 
 ---
 
-## What the prototype already does (`metronome.jsx`)
-
-Verified against the file in this repo:
+## What the app already does (`src/components/Metronome.tsx`)
 
 - **Web Audio scheduling**: Uses `AudioContext.currentTime` plus a **lookahead window** (`SCHEDULE_AHEAD`) and a **short `setTimeout` loop** (`LOOKAHEAD` ms) to queue upcoming beats — the same family of approach described in Chris Wilson’s classic write-up on **lookahead scheduling** (search: “Chris Wilson Web Audio scheduling”); **not** a naive `setInterval` per beat.
 - **Sounds (4)**: `click`, `wood`, `hi_hat`, `rim` — all **synthesized** (oscillators / short noise buffers), no external samples.
-- **Tap tempo**: Uses **two or more** taps within a 3s window (interval average → BPM). *Earlier chat text said “3+ taps”; the code only needs 2 for a first estimate.*
+- **Tap tempo**: Uses **two or more** taps within a 3s window (interval average → BPM).
 - **BPM UI**: Drag vertically on the big number (mouse + touch), ±1 / ±10 buttons.
 - **Beats per bar**: 2–7; **beat 1 accent** in audio and larger pip.
 - **Tempo name**: Coarse Italian-ish bucket labels from BPM.
@@ -72,36 +81,30 @@ Verified against the file in this repo:
 ### Honest gaps / follow-ups before you call it “shippable”
 
 - **Effects dependency bug risk**: The effect that calls `engine.start(...)` only lists `[playing]` as a dependency, while `handleBeat` / initial `bpm` / `beats` / `sound` are read from the render that toggled play. It works for common flows; tightening deps or passing a ref for the callback avoids edge cases after refactors.
-- **Singleton engine**: One module-level `engine` is fine for a single page; React **Strict Mode** double-mount in dev can surprise you — worth testing when you scaffold the real app.
+- **Singleton engine**: One module-level `engine` is fine for a single page; React **Strict Mode** double-mount in dev can surprise you — worth testing.
 - **Visual “flash”**: Pips light up; there is **no** full-screen pulse yet if you want that for peripheral vision while playing.
 - **Mobile audio policies**: Browsers may start `AudioContext` suspended until a user gesture — the code resumes on `start()`, which is correct; still worth testing on **iOS Safari** early.
+- **Fonts**: Bebas Neue / DM Mono are still loaded via a `<style>` `@import` inside the component; moving to **`next/font/google`** would match Next best practices and reduce layout shift.
 
 ---
 
 ## Design direction (from the conversation, kept concrete)
 
 - **Palette**: Near-black background (`#0e0e0f`), warm off-white for idle emphasis (`#e8e0d0`), amber/gold for active/playing (`#e8c97a`).
-- **Type**: `Bebas Neue` for the big BPM readout; `DM Mono` for controls — loaded via Google Fonts in the component today; move to `next/font` or self-hosted when you app-ify.
+- **Type**: `Bebas Neue` for the big BPM readout; `DM Mono` for controls.
 - **Vibe**: “Gear on a bench” — weight from typography and color discipline, not fake chrome.
 
 ---
 
 ## Suggested stack (when you build the real project)
 
-- **Next.js + React** for UI and routing (even if there is only one route at first).
-- **Capacitor** if you want a home-screen app with minimal ceremony (you’ve used this pattern elsewhere).
+- **Next.js + React** — in use.
+- **Capacitor** if you want a home-screen app with minimal ceremony.
 - **PWA manifest** is a low-friction alternative for installability without app store flow.
 
 ---
 
-## Quick start when you return
-
-1. Scaffold a React app (Next.js or Vite + React — your preference).
-2. Copy `metronome.jsx` into `components/Metronome.tsx` or `.jsx`, fix imports for your app’s React version.
-3. Render `<Metronome />` on a single page; confirm **tap-to-start** audio on mobile.
-4. Work down the **gaps** list above, then the **stretch** list.
-
-Optional first engineering tasks (order of leverage):
+## Next engineering tasks (suggested order)
 
 1. Spacebar play/pause + focus management.
 2. **Practice timer** (countdown + stop at zero; clarify pause semantics in copy).
@@ -121,4 +124,4 @@ Optional first engineering tasks (order of leverage):
 
 ## Disclaimer
 
-Ideas and prototype text originated from a chat with another assistant; **this README and the code were reviewed** so the “what’s actually implemented” section matches `metronome.jsx`. Treat chat claims (e.g. exact tap count, sound list) as **non-authoritative** unless they match the file or this doc.
+Ideas and early prototype text originated from a chat with another assistant; the **implemented behavior** is defined by `src/components/Metronome.tsx` and this README.
