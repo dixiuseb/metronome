@@ -3,6 +3,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 type SoundId = "click" | "wood" | "hi_hat" | "rim";
+/** 0 = normal, 1 = medium accent, 2 = strong accent */
+type AccentLevel = 0 | 1 | 2;
+
+function defaultBeatAccents(count: number): AccentLevel[] {
+  return Array.from({ length: count }, (_, i) => (i === 0 ? 2 : 0));
+}
+
+function lerp(a: number, b: number, level: AccentLevel) {
+  return a + (b - a) * (level / 2);
+}
 
 // ─── Audio Engine ───────────────────────────────────────────────────────────
 function createAudioEngine() {
@@ -13,6 +23,7 @@ function createAudioEngine() {
   let bpm = 120;
   let beatsPerBar = 4;
   let soundType: SoundId = "click";
+  let accentPattern: AccentLevel[] = defaultBeatAccents(4);
   let onBeat: ((beatIndex: number) => void) | null = null;
   /** Stops future clicks when `stop()` runs (dev Strict Mode double-mount, pause, etc.). */
   let scheduledSources: AudioScheduledSourceNode[] = [];
@@ -70,7 +81,7 @@ function createAudioEngine() {
     playbackGeneration += 1;
   }
 
-  function playClick(time: number, isAccent: boolean) {
+  function playClick(time: number, level: AccentLevel) {
     const c = getCtx();
     const sounds: Record<SoundId, () => void> = {
       click: () => {
@@ -78,8 +89,8 @@ function createAudioEngine() {
         const gain = c.createGain();
         osc.connect(gain);
         gain.connect(c.destination);
-        osc.frequency.value = isAccent ? 1800 : 1200;
-        gain.gain.setValueAtTime(isAccent ? 0.9 : 0.6, time);
+        osc.frequency.value = lerp(1200, 1800, level);
+        gain.gain.setValueAtTime(lerp(0.6, 0.9, level), time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
         trackSource(osc);
         osc.start(time);
@@ -94,13 +105,13 @@ function createAudioEngine() {
         const gain = c.createGain();
         const filter = c.createBiquadFilter();
         filter.type = "bandpass";
-        filter.frequency.value = isAccent ? 900 : 600;
+        filter.frequency.value = lerp(600, 900, level);
         filter.Q.value = 8;
         src.buffer = buf;
         src.connect(filter);
         filter.connect(gain);
         gain.connect(c.destination);
-        gain.gain.setValueAtTime(isAccent ? 1.2 : 0.8, time);
+        gain.gain.setValueAtTime(lerp(0.8, 1.2, level), time);
         trackSource(src);
         src.start(time);
       },
@@ -118,7 +129,7 @@ function createAudioEngine() {
         src.connect(filter);
         filter.connect(gain);
         gain.connect(c.destination);
-        gain.gain.setValueAtTime(isAccent ? 0.8 : 0.5, time);
+        gain.gain.setValueAtTime(lerp(0.5, 0.8, level), time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
         trackSource(src);
         src.start(time);
@@ -127,10 +138,10 @@ function createAudioEngine() {
         const c2 = getCtx();
         const osc = c2.createOscillator();
         const oscGain = c2.createGain();
-        osc.frequency.value = isAccent ? 400 : 320;
+        osc.frequency.value = lerp(320, 400, level);
         osc.connect(oscGain);
         oscGain.connect(c2.destination);
-        oscGain.gain.setValueAtTime(isAccent ? 0.6 : 0.4, time);
+        oscGain.gain.setValueAtTime(lerp(0.4, 0.6, level), time);
         oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
         trackSource(osc);
         osc.start(time);
@@ -144,7 +155,7 @@ function createAudioEngine() {
         src.buffer = buf;
         src.connect(nGain);
         nGain.connect(c2.destination);
-        nGain.gain.setValueAtTime(isAccent ? 0.5 : 0.3, time);
+        nGain.gain.setValueAtTime(lerp(0.3, 0.5, level), time);
         trackSource(src);
         src.start(time);
       },
@@ -157,6 +168,7 @@ function createAudioEngine() {
       b: number,
       beats: number,
       sound: SoundId,
+      accents: AccentLevel[],
       callback: (beatIndex: number) => void,
     ) {
       stopScheduler();
@@ -166,6 +178,8 @@ function createAudioEngine() {
       bpm = b;
       beatsPerBar = beats;
       soundType = sound;
+      accentPattern =
+        accents.length === beats ? accents : defaultBeatAccents(beats);
       onBeat = callback;
       const c = getCtx();
       if (c.state === "suspended") void c.resume();
@@ -176,10 +190,10 @@ function createAudioEngine() {
         if (sessionGeneration !== playbackGeneration) return;
 
         while (nextBeatTime < c.currentTime + SCHEDULE_AHEAD) {
-          const isAccent = currentBeat === 0;
           const beatIndex = currentBeat;
+          const accentLevel = accentPattern[beatIndex] ?? 0;
           const scheduledTime = nextBeatTime;
-          playClick(scheduledTime, isAccent);
+          playClick(scheduledTime, accentLevel);
 
           const delay = Math.max(0, (scheduledTime - c.currentTime) * 1000);
           beatCallbackTimers.push(
@@ -213,6 +227,12 @@ function createAudioEngine() {
     },
     setSound(s: SoundId) {
       soundType = s;
+    },
+    setAccents(accents: AccentLevel[]) {
+      accentPattern =
+        accents.length === beatsPerBar
+          ? accents
+          : defaultBeatAccents(beatsPerBar);
     },
   };
 }
@@ -263,10 +283,31 @@ function snapTimerSec(sec: number) {
   return Math.round(clamped / TIMER_DRAG_STEP_SEC) * TIMER_DRAG_STEP_SEC;
 }
 
+function pipSize(level: AccentLevel) {
+  return level === 2 ? 18 : level === 1 ? 16 : 14;
+}
+
+const PIP_SLOT_SIZE = 18;
+
+function pipIdleStyle(level: AccentLevel) {
+  if (level === 2) return { background: "#252218", border: "#554a32" };
+  if (level === 1) return { background: "#1f1f1a", border: "#3a3a32" };
+  return { background: "#1e1e20", border: "#2a2a2c" };
+}
+
+function pipActiveStyle(level: AccentLevel) {
+  if (level === 2) return { background: "#e8c97a", shadow: "0 0 12px #e8c97a88" };
+  if (level === 1) return { background: "#a89060", shadow: "0 0 8px #a8906088" };
+  return { background: "#888", shadow: "0 0 8px #55555588" };
+}
+
 export default function Metronome() {
   const [bpm, setBpm] = useState(100);
   const [playing, setPlaying] = useState(false);
   const [beats, setBeats] = useState(4);
+  const [beatAccents, setBeatAccents] = useState<AccentLevel[]>(() =>
+    defaultBeatAccents(4),
+  );
   const [sound, setSound] = useState<SoundId>("click");
   const [timerPresetSec, setTimerPresetSec] = useState(0);
   const [timerRemainingSec, setTimerRemainingSec] = useState<number | null>(
@@ -282,6 +323,7 @@ export default function Metronome() {
   const playingRef = useRef(playing);
   const onBeatRef = useRef<(beatIndex: number) => void>(() => {});
   const timerPresetSecRef = useRef(timerPresetSec);
+  const beatAccentsRef = useRef(beatAccents);
   const stopPlaybackRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -295,6 +337,10 @@ export default function Metronome() {
   useEffect(() => {
     timerPresetSecRef.current = timerPresetSec;
   }, [timerPresetSec]);
+
+  useEffect(() => {
+    beatAccentsRef.current = beatAccents;
+  }, [beatAccents]);
 
   useEffect(() => {
     timerDisplaySecRef.current =
@@ -326,9 +372,15 @@ export default function Metronome() {
       return;
     }
 
-    engine.start(bpmRef.current, beats, sound, (beatIndex) => {
-      onBeatRef.current(beatIndex);
-    });
+    engine.start(
+      bpmRef.current,
+      beats,
+      sound,
+      beatAccentsRef.current,
+      (beatIndex) => {
+        onBeatRef.current(beatIndex);
+      },
+    );
     playingRef.current = true;
     setPlaying(true);
 
@@ -378,6 +430,29 @@ export default function Metronome() {
   useEffect(() => {
     if (playingRef.current) engine.setSound(sound);
   }, [sound]);
+
+  useEffect(() => {
+    if (playingRef.current) engine.setAccents(beatAccents);
+  }, [beatAccents]);
+
+  const handleBeatsChange = useCallback((n: number) => {
+    setBeats(n);
+    setBeatAccents((prev) => {
+      const next = defaultBeatAccents(n);
+      for (let i = 0; i < Math.min(prev.length, n); i++) {
+        next[i] = prev[i];
+      }
+      return next;
+    });
+  }, []);
+
+  const cycleBeatAccent = useCallback((index: number) => {
+    setBeatAccents((prev) => {
+      const next = [...prev];
+      next[index] = ((next[index] ?? 0) + 1) % 3 as AccentLevel;
+      return next;
+    });
+  }, []);
 
   const handleTap = useTapTempo((tappedBpm) => {
     setBpm(tappedBpm);
@@ -525,7 +600,20 @@ export default function Metronome() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
         * { box-sizing: border-box; }
-        .beat-pip { transition: background 0.05s, box-shadow 0.05s; }
+        .beat-pip { transition: background 0.05s, box-shadow 0.05s, border-color 0.12s; }
+        .beat-pip-btn {
+          padding: 0;
+          cursor: pointer;
+          flex-shrink: 0;
+          width: ${PIP_SLOT_SIZE}px;
+          height: ${PIP_SLOT_SIZE}px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border: none;
+        }
+        .beat-pip-btn:hover { filter: brightness(1.15); }
         .btn-sound { transition: all 0.12s; }
         .btn-sound:hover { background: #2a2a2c !important; }
         .play-btn { transition: all 0.12s; }
@@ -653,31 +741,34 @@ export default function Metronome() {
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 40 }}>
-        {Array.from({ length: beats }).map((_, i) => (
-          <div
-            key={i}
-            className="beat-pip"
-            style={{
-              width: i === 0 ? 18 : 14,
-              height: i === 0 ? 18 : 14,
-              borderRadius: "50%",
-              background:
-                highlightedBeat === i
-                  ? i === 0
-                    ? "#e8c97a"
-                    : "#888"
-                  : "#1e1e20",
-              border: `1px solid ${i === 0 ? "#444" : "#2a2a2c"}`,
-              boxShadow:
-                highlightedBeat === i
-                  ? i === 0
-                    ? "0 0 12px #e8c97a88"
-                    : "0 0 8px #55555588"
-                  : "none",
-              marginTop: i === 0 ? 0 : 2,
-            }}
-          />
-        ))}
+        {Array.from({ length: beats }).map((_, i) => {
+          const level = beatAccents[i] ?? 0;
+          const size = pipSize(level);
+          const isActive = highlightedBeat === i;
+          const idle = pipIdleStyle(level);
+          const active = pipActiveStyle(level);
+          return (
+            <button
+              key={i}
+              type="button"
+              className="beat-pip-btn"
+              aria-label={`Beat ${i + 1}, accent level ${level}`}
+              onClick={() => cycleBeatAccent(i)}
+            >
+              <div
+                className="beat-pip"
+                style={{
+                  width: size,
+                  height: size,
+                  borderRadius: "50%",
+                  background: isActive ? active.background : idle.background,
+                  border: `1px solid ${isActive ? active.background : idle.border}`,
+                  boxShadow: isActive ? active.shadow : "none",
+                }}
+              />
+            </button>
+          );
+        })}
       </div>
 
       <div
@@ -834,7 +925,7 @@ export default function Metronome() {
               key={n}
               type="button"
               className="time-btn"
-              onClick={() => setBeats(n)}
+              onClick={() => handleBeatsChange(n)}
               style={{
                 width: 36,
                 height: 36,
