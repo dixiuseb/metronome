@@ -19,6 +19,7 @@ These are roughly what exists in **`src/components/Metronome.tsx`** today:
 | Done | Four synthetic sounds (`click`, `wood`, `hi_hat`, `rim`) |
 | Done | Beat pips synced to lookahead Web Audio scheduler |
 | Done | Play / pause |
+| Done | **Practice timer** — draggable M:SS clock (0:00 = off); pause freezes; auto-stop at zero |
 
 **Quality / infra checks** (baseline polish)
 
@@ -45,7 +46,7 @@ Full semantics live in **`spec.md`**.
 
 | Priority | Feature | Guardrail recap |
 |:--------:|---------|------------------|
-| P1 | **Practice timer** | Duration → countdown → stop; same screen; avoid session/history dashboards |
+| Done | **Practice timer** | Draggable M:SS clock; 0:00 = off; pause freezes; auto-stop at zero |
 | P2 | **Tempo progression** | Start BPM, end BPM, **one** pacing model UI (duration ramp *or* step cadence)—no workout builder |
 
 Stretch candidates only after drills feel airtight or you postpone drills intentionally → see **Beyond MVP**.
@@ -57,13 +58,12 @@ Stretch candidates only after drills feel airtight or you postpone drills intent
 Rough dependency-friendly sequence—adjust freely.
 
 1. **Spacebar play/pause** + focus ergonomics  
-2. **Practice timer** (decide paused-clock semantics + copy aligned to choice)  
-3. **Tempo progression** bounded inputs vs builder UX creep  
-4. **Master volume (+ optional accent differentiation)**  
-5. **Fonts via `next/font/google`** (+ prune inline `@import` block)  
-6. **Subdivisions display / optional audible subdivisions**  
-7. **Pattern presets scheduling layer** rock / eighth hats / sparse jazz rides etc  
-8. **PWA manifest** *(and/or evaluate Capacitor once web shell feels final)*  
+2. **Tempo progression** bounded inputs vs builder UX creep  
+3. **Master volume (+ optional accent differentiation)**  
+4. **Fonts via `next/font/google`** (+ prune inline `@import` block)  
+5. **Subdivisions display / optional audible subdivisions**  
+6. **Pattern presets scheduling layer** rock / eighth hats / sparse jazz rides etc  
+7. **PWA manifest** *(and/or evaluate Capacitor once web shell feels final)*  
 
 ---
 

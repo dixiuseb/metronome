@@ -11,6 +11,7 @@ Whether you drum, play another instrument, or just need a reliable click track, 
 - Set **beats per bar** (2–8)—beat one is accented so phrases stay anchored
 - Choose from **four built-in sounds** (click, wood, hi-hat, rim)—all synthesized, no downloads
 - **Play / pause** with an obvious primary control
+- **Practice timer** (optional)—drag the clock to set a duration (0:00 = off); counts down and stops when time's up
 
 ## Try it locally
 

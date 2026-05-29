@@ -245,17 +245,39 @@ const SOUNDS: { id: SoundId; label: string }[] = [
 
 const TIME_SIGS = [2, 3, 4, 5, 6, 7, 8] as const;
 
+const MAX_TIMER_SEC = 60 * 60;
+const TIMER_DRAG_STEP_SEC = 15;
+
+function formatTimer(totalSec: number) {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function clampTimerSec(sec: number) {
+  return Math.min(MAX_TIMER_SEC, Math.max(0, Math.round(sec)));
+}
+
 export default function Metronome() {
   const [bpm, setBpm] = useState(100);
   const [playing, setPlaying] = useState(false);
   const [beats, setBeats] = useState(4);
   const [sound, setSound] = useState<SoundId>("click");
+  const [timerPresetSec, setTimerPresetSec] = useState(0);
+  const [timerRemainingSec, setTimerRemainingSec] = useState<number | null>(
+    null,
+  );
   const [activeBeat, setActiveBeat] = useState(-1);
   const [dragging, setDragging] = useState(false);
+  const [timerDragging, setTimerDragging] = useState(false);
   const dragStart = useRef<{ y: number; bpm: number } | null>(null);
+  const timerDragStart = useRef<{ y: number; sec: number } | null>(null);
   const bpmRef = useRef(bpm);
+  const timerDisplaySecRef = useRef(0);
   const playingRef = useRef(playing);
   const onBeatRef = useRef<(beatIndex: number) => void>(() => {});
+  const timerPresetSecRef = useRef(timerPresetSec);
+  const stopPlaybackRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     bpmRef.current = bpm;
@@ -264,6 +286,15 @@ export default function Metronome() {
   useEffect(() => {
     playingRef.current = playing;
   }, [playing]);
+
+  useEffect(() => {
+    timerPresetSecRef.current = timerPresetSec;
+  }, [timerPresetSec]);
+
+  useEffect(() => {
+    timerDisplaySecRef.current =
+      timerRemainingSec !== null ? timerRemainingSec : timerPresetSec;
+  }, [timerRemainingSec, timerPresetSec]);
 
   const handleBeat = useCallback((beatIndex: number) => {
     setActiveBeat(beatIndex);
@@ -274,18 +305,61 @@ export default function Metronome() {
     onBeatRef.current = handleBeat;
   }, [handleBeat]);
 
+  const stopPlayback = useCallback(() => {
+    engine.stop();
+    playingRef.current = false;
+    setPlaying(false);
+  }, []);
+
+  useEffect(() => {
+    stopPlaybackRef.current = stopPlayback;
+  }, [stopPlayback]);
+
   const togglePlay = useCallback(() => {
     if (playingRef.current) {
-      engine.stop();
-      setPlaying(false);
+      stopPlayback();
       return;
     }
 
     engine.start(bpmRef.current, beats, sound, (beatIndex) => {
       onBeatRef.current(beatIndex);
     });
+    playingRef.current = true;
     setPlaying(true);
-  }, [beats, sound]);
+
+    if (timerPresetSecRef.current > 0) {
+      setTimerRemainingSec((prev) => {
+        if (prev === null || prev <= 0) return timerPresetSecRef.current;
+        return prev;
+      });
+    }
+  }, [beats, sound, stopPlayback]);
+
+  // Countdown only while playing; pause freezes remaining time.
+  useEffect(() => {
+    if (!playing) return;
+
+    const id = window.setInterval(() => {
+      setTimerRemainingSec((prev) => {
+        if (prev === null || prev <= 0) return prev;
+        if (prev <= 1) {
+          stopPlaybackRef.current();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [playing]);
+
+  const applyTimerSec = useCallback((sec: number) => {
+    const clamped = clampTimerSec(sec);
+    setTimerPresetSec(clamped);
+    if (!playingRef.current) {
+      setTimerRemainingSec((prev) => (prev !== null ? clamped : null));
+    }
+  }, []);
 
   // Stop on unmount only — not tied to play/pause (avoids effect cleanup re-start races).
   useEffect(() => () => engine.stop(), []);
@@ -346,6 +420,56 @@ export default function Metronome() {
     if (playing) engine.setBpm(newBpm);
   };
 
+  const handleTimerMouseDown = (e: React.MouseEvent) => {
+    if (playingRef.current) return;
+    timerDragStart.current = { y: e.clientY, sec: timerDisplaySecRef.current };
+    setTimerDragging(true);
+  };
+  const handleTimerMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!timerDragStart.current) return;
+      const deltaSteps = Math.round(
+        (timerDragStart.current.y - e.clientY) / 6,
+      );
+      applyTimerSec(
+        timerDragStart.current.sec + deltaSteps * TIMER_DRAG_STEP_SEC,
+      );
+    },
+    [applyTimerSec],
+  );
+  const handleTimerMouseUp = useCallback(() => {
+    timerDragStart.current = null;
+    setTimerDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (timerDragging) {
+      window.addEventListener("mousemove", handleTimerMouseMove);
+      window.addEventListener("mouseup", handleTimerMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleTimerMouseMove);
+      window.removeEventListener("mouseup", handleTimerMouseUp);
+    };
+  }, [timerDragging, handleTimerMouseMove, handleTimerMouseUp]);
+
+  const handleTimerTouchStart = (e: React.TouchEvent) => {
+    if (playingRef.current) return;
+    timerDragStart.current = {
+      y: e.touches[0].clientY,
+      sec: timerDisplaySecRef.current,
+    };
+  };
+  const handleTimerTouchMove = (e: React.TouchEvent) => {
+    if (!timerDragStart.current || playingRef.current) return;
+    const deltaSteps = Math.round(
+      (timerDragStart.current.y - e.touches[0].clientY) / 6,
+    );
+    applyTimerSec(
+      timerDragStart.current.sec + deltaSteps * TIMER_DRAG_STEP_SEC,
+    );
+  };
+
   const tempoLabel =
     bpm < 60
       ? "Larghetto"
@@ -360,6 +484,16 @@ export default function Metronome() {
               : "Prestissimo";
 
   const highlightedBeat = playing ? activeBeat : -1;
+  const timerDisplaySec =
+    timerRemainingSec !== null ? timerRemainingSec : timerPresetSec;
+  const timerSessionActive = timerRemainingSec !== null;
+  const timerColor = playing
+    ? "#e8c97a"
+    : timerSessionActive
+      ? "#e8e0d0"
+      : timerPresetSec > 0
+        ? "#888"
+        : "#555";
 
   return (
     <div
@@ -387,6 +521,9 @@ export default function Metronome() {
         .tap-btn:active { background: #2a2a2c !important; transform: scale(0.97); }
         .bpm-display { cursor: ns-resize; }
         .bpm-display:active { opacity: 0.85; }
+        .timer-display { cursor: ns-resize; }
+        .timer-display:active { opacity: 0.85; }
+        .timer-display.is-locked { cursor: not-allowed; opacity: 0.85; }
         .time-btn:hover { border-color: #e8e0d0 !important; color: #e8e0d0 !important; }
       `}</style>
 
@@ -405,45 +542,102 @@ export default function Metronome() {
       </div>
 
       <div
-        className="bpm-display"
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
         style={{
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
+          gap: 12,
+          alignItems: "stretch",
+          justifyContent: "center",
           marginBottom: 8,
-          padding: "16px 48px",
-          borderRadius: 4,
-          background: "#141416",
-          border: "1px solid #222",
+          flexWrap: "wrap",
         }}
       >
         <div
+          className="bpm-display"
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
           style={{
-            fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: 96,
-            lineHeight: 1,
-            letterSpacing: 2,
-            color: playing ? "#e8c97a" : "#e8e0d0",
-            transition: "color 0.2s",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "16px 40px",
+            borderRadius: 4,
+            background: "#141416",
+            border: "1px solid #222",
             minWidth: 200,
-            textAlign: "center",
           }}
         >
-          {bpm}
+          <div
+            style={{
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: 96,
+              lineHeight: 1,
+              letterSpacing: 2,
+              color: playing ? "#e8c97a" : "#e8e0d0",
+              transition: "color 0.2s",
+              minWidth: 160,
+              textAlign: "center",
+            }}
+          >
+            {bpm}
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: 4,
+              color: "#444",
+              marginTop: 2,
+              fontFamily: "'DM Mono', monospace",
+            }}
+          >
+            BPM — DRAG TO ADJUST
+          </div>
         </div>
+
         <div
+          className={`timer-display${playing ? " is-locked" : ""}`}
+          onMouseDown={handleTimerMouseDown}
+          onTouchStart={handleTimerTouchStart}
+          onTouchMove={handleTimerTouchMove}
           style={{
-            fontSize: 11,
-            letterSpacing: 4,
-            color: "#444",
-            marginTop: 2,
-            fontFamily: "'DM Mono', monospace",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px 32px",
+            borderRadius: 4,
+            background: "#141416",
+            border: "1px solid #222",
+            minWidth: 160,
           }}
         >
-          BPM — DRAG TO ADJUST
+          <div
+            style={{
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: 56,
+              lineHeight: 1,
+              letterSpacing: 2,
+              color: timerColor,
+              transition: "color 0.2s",
+              minWidth: 120,
+              textAlign: "center",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {formatTimer(timerDisplaySec)}
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: 4,
+              color: "#444",
+              marginTop: 6,
+              fontFamily: "'DM Mono', monospace",
+              textAlign: "center",
+            }}
+          >
+            PRACTICE — DRAG TO ADJUST
+          </div>
         </div>
       </div>
       <div
