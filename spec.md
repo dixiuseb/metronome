@@ -64,8 +64,8 @@ Four IDs, all **synthesized**: `click`, `wood`, `hi_hat`, `rim` (oscillators and
 
 | Topic | Notes |
 |--------|--------|
-| **`useEffect([playing])` + engine** | Restart only binds to `playing` by design so toggling BPM while playing doesn’t reschedule from scratch; `eslint-disable-next-line react-hooks/exhaustive-deps` documents that intent. Alternate: wire `handleBeat`/initial params via refs—see roadmap if refactoring. |
-| **Module singleton engine** | One module-level engine instance suffices for one page load; validate **Strict Mode double-mount** in dev when changing lifecycle. |
+| **`useEffect([playing])` + engine** | **Removed.** Play/pause now call `engine.start()` / `engine.stop()` directly from the button handler (user gesture + no effect cleanup races). Parameter sync while playing uses effects keyed only on `bpm` / `beats` / `sound`, not `playing`. |
+| **Module singleton engine** | One module-level instance is fine for a single route. `stopScheduler()` stops queued sources, **clears pending beat `setTimeout`s**, disconnects nodes, and bumps a **generation** counter so stale callbacks no-op. |
 | **Visual pulse** | Beat pips only; optional full-frame flash deferred. |
 | **Mobile / iOS** | `AudioContext` may start suspended; `resume()` on start is wired—still verify **Safari**. |
 | **Fonts** | Bebas Neue + DM Mono still loaded via **`@import` inside the component**. Prefer **`next/font/google`** to reduce CLS and satisfy Next idioms—see roadmap. |

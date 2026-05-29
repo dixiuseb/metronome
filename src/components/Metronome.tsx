@@ -14,6 +14,11 @@ function createAudioEngine() {
   let beatsPerBar = 4;
   let soundType: SoundId = "click";
   let onBeat: ((beatIndex: number) => void) | null = null;
+  /** Stops future clicks when `stop()` runs (dev Strict Mode double-mount, pause, etc.). */
+  let scheduledSources: AudioScheduledSourceNode[] = [];
+  /** Bumped in `stop()` so stale `setTimeout` chains and UI callbacks no-op. */
+  let playbackGeneration = 0;
+  let beatCallbackTimers: ReturnType<typeof setTimeout>[] = [];
 
   const LOOKAHEAD = 25; // ms
   const SCHEDULE_AHEAD = 0.1; // seconds
@@ -30,6 +35,41 @@ function createAudioEngine() {
     return ctx;
   }
 
+  function trackSource(node: AudioScheduledSourceNode) {
+    scheduledSources.push(node);
+  }
+
+  function silenceScheduledSources() {
+    const c = ctx;
+    const stopAt = c ? c.currentTime : 0;
+    for (const node of scheduledSources) {
+      try {
+        node.stop(stopAt);
+      } catch {
+        // already stopped / not started
+      }
+      try {
+        node.disconnect();
+      } catch {
+        // already disconnected
+      }
+    }
+    scheduledSources = [];
+  }
+
+  function clearBeatCallbacks() {
+    for (const timerId of beatCallbackTimers) clearTimeout(timerId);
+    beatCallbackTimers = [];
+  }
+
+  function stopScheduler() {
+    silenceScheduledSources();
+    clearBeatCallbacks();
+    if (schedulerTimer) clearTimeout(schedulerTimer);
+    schedulerTimer = null;
+    playbackGeneration += 1;
+  }
+
   function playClick(time: number, isAccent: boolean) {
     const c = getCtx();
     const sounds: Record<SoundId, () => void> = {
@@ -41,6 +81,7 @@ function createAudioEngine() {
         osc.frequency.value = isAccent ? 1800 : 1200;
         gain.gain.setValueAtTime(isAccent ? 0.9 : 0.6, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+        trackSource(osc);
         osc.start(time);
         osc.stop(time + 0.05);
       },
@@ -60,6 +101,7 @@ function createAudioEngine() {
         filter.connect(gain);
         gain.connect(c.destination);
         gain.gain.setValueAtTime(isAccent ? 1.2 : 0.8, time);
+        trackSource(src);
         src.start(time);
       },
       hi_hat: () => {
@@ -78,6 +120,7 @@ function createAudioEngine() {
         gain.connect(c.destination);
         gain.gain.setValueAtTime(isAccent ? 0.8 : 0.5, time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+        trackSource(src);
         src.start(time);
       },
       rim: () => {
@@ -89,6 +132,7 @@ function createAudioEngine() {
         oscGain.connect(c2.destination);
         oscGain.gain.setValueAtTime(isAccent ? 0.6 : 0.4, time);
         oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+        trackSource(osc);
         osc.start(time);
         osc.stop(time + 0.03);
         const buf = c2.createBuffer(1, c2.sampleRate * 0.03, c2.sampleRate);
@@ -101,29 +145,11 @@ function createAudioEngine() {
         src.connect(nGain);
         nGain.connect(c2.destination);
         nGain.gain.setValueAtTime(isAccent ? 0.5 : 0.3, time);
+        trackSource(src);
         src.start(time);
       },
     };
     (sounds[soundType] ?? sounds.click)();
-  }
-
-  function scheduleBeats() {
-    const c = getCtx();
-    while (nextBeatTime < c.currentTime + SCHEDULE_AHEAD) {
-      const isAccent = currentBeat === 0;
-      const beatIndex = currentBeat;
-      const scheduledTime = nextBeatTime;
-      playClick(scheduledTime, isAccent);
-
-      const delay = Math.max(0, (scheduledTime - c.currentTime) * 1000);
-      setTimeout(() => {
-        onBeat?.(beatIndex);
-      }, delay);
-
-      currentBeat = (currentBeat + 1) % beatsPerBar;
-      nextBeatTime += 60.0 / bpm;
-    }
-    schedulerTimer = setTimeout(scheduleBeats, LOOKAHEAD);
   }
 
   return {
@@ -133,6 +159,10 @@ function createAudioEngine() {
       sound: SoundId,
       callback: (beatIndex: number) => void,
     ) {
+      stopScheduler();
+
+      const sessionGeneration = playbackGeneration;
+
       bpm = b;
       beatsPerBar = beats;
       soundType = sound;
@@ -141,16 +171,43 @@ function createAudioEngine() {
       if (c.state === "suspended") void c.resume();
       currentBeat = 0;
       nextBeatTime = c.currentTime + 0.05;
+
+      function scheduleBeats() {
+        if (sessionGeneration !== playbackGeneration) return;
+
+        while (nextBeatTime < c.currentTime + SCHEDULE_AHEAD) {
+          const isAccent = currentBeat === 0;
+          const beatIndex = currentBeat;
+          const scheduledTime = nextBeatTime;
+          playClick(scheduledTime, isAccent);
+
+          const delay = Math.max(0, (scheduledTime - c.currentTime) * 1000);
+          beatCallbackTimers.push(
+            setTimeout(() => {
+              if (sessionGeneration !== playbackGeneration) return;
+              onBeat?.(beatIndex);
+            }, delay),
+          );
+
+          currentBeat = (currentBeat + 1) % beatsPerBar;
+          nextBeatTime += 60.0 / bpm;
+        }
+        schedulerTimer = setTimeout(() => {
+          if (sessionGeneration !== playbackGeneration) return;
+          scheduleBeats();
+        }, LOOKAHEAD);
+      }
+
       scheduleBeats();
     },
     stop() {
-      if (schedulerTimer) clearTimeout(schedulerTimer);
-      schedulerTimer = null;
+      stopScheduler();
     },
     setBpm(b: number) {
       bpm = b;
     },
     setBeats(b: number) {
+      if (b === beatsPerBar) return;
       beatsPerBar = b;
       currentBeat = 0;
     },
@@ -197,10 +254,16 @@ export default function Metronome() {
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef<{ y: number; bpm: number } | null>(null);
   const bpmRef = useRef(bpm);
+  const playingRef = useRef(playing);
+  const onBeatRef = useRef<(beatIndex: number) => void>(() => {});
 
   useEffect(() => {
     bpmRef.current = bpm;
   }, [bpm]);
+
+  useEffect(() => {
+    playingRef.current = playing;
+  }, [playing]);
 
   const handleBeat = useCallback((beatIndex: number) => {
     setActiveBeat(beatIndex);
@@ -208,25 +271,34 @@ export default function Metronome() {
   }, []);
 
   useEffect(() => {
-    if (playing) {
-      engine.start(bpm, beats, sound, handleBeat);
-    } else {
+    onBeatRef.current = handleBeat;
+  }, [handleBeat]);
+
+  const togglePlay = useCallback(() => {
+    if (playingRef.current) {
       engine.stop();
+      setPlaying(false);
+      return;
     }
-    return () => engine.stop();
-    // Only `playing` should restart the scheduler; bpm / beats / sound update via engine.set* in other effects.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing]);
+
+    engine.start(bpmRef.current, beats, sound, (beatIndex) => {
+      onBeatRef.current(beatIndex);
+    });
+    setPlaying(true);
+  }, [beats, sound]);
+
+  // Stop on unmount only — not tied to play/pause (avoids effect cleanup re-start races).
+  useEffect(() => () => engine.stop(), []);
 
   useEffect(() => {
-    if (playing) engine.setBpm(bpm);
-  }, [bpm, playing]);
+    if (playingRef.current) engine.setBpm(bpm);
+  }, [bpm]);
   useEffect(() => {
-    if (playing) engine.setBeats(beats);
-  }, [beats, playing]);
+    if (playingRef.current) engine.setBeats(beats);
+  }, [beats]);
   useEffect(() => {
-    if (playing) engine.setSound(sound);
-  }, [sound, playing]);
+    if (playingRef.current) engine.setSound(sound);
+  }, [sound]);
 
   const handleTap = useTapTempo((tappedBpm) => {
     setBpm(tappedBpm);
@@ -482,7 +554,7 @@ export default function Metronome() {
         <button
           type="button"
           className="play-btn"
-          onClick={() => setPlaying((p) => !p)}
+          onClick={togglePlay}
           style={{
             width: 88,
             height: 52,
