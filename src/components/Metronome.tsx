@@ -544,11 +544,10 @@ export default function Metronome() {
       <div
         style={{
           display: "flex",
-          gap: 12,
           alignItems: "stretch",
           justifyContent: "center",
+          gap: 10,
           marginBottom: 8,
-          flexWrap: "wrap",
         }}
       >
         <div
@@ -560,11 +559,11 @@ export default function Metronome() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            padding: "16px 40px",
+            justifyContent: "center",
+            padding: "14px 36px 12px",
             borderRadius: 4,
             background: "#141416",
             border: "1px solid #222",
-            minWidth: 200,
           }}
         >
           <div
@@ -575,7 +574,7 @@ export default function Metronome() {
               letterSpacing: 2,
               color: playing ? "#e8c97a" : "#e8e0d0",
               transition: "color 0.2s",
-              minWidth: 160,
+              minWidth: 140,
               textAlign: "center",
             }}
           >
@@ -583,14 +582,14 @@ export default function Metronome() {
           </div>
           <div
             style={{
-              fontSize: 11,
-              letterSpacing: 4,
+              fontSize: 9,
+              letterSpacing: 3,
               color: "#444",
-              marginTop: 2,
+              marginTop: 4,
               fontFamily: "'DM Mono', monospace",
             }}
           >
-            BPM — DRAG TO ADJUST
+            BPM — DRAG
           </div>
         </div>
 
@@ -604,22 +603,22 @@ export default function Metronome() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            padding: "16px 32px",
+            padding: "14px 28px 12px",
+            minWidth: 108,
             borderRadius: 4,
             background: "#141416",
             border: "1px solid #222",
-            minWidth: 160,
           }}
         >
           <div
             style={{
               fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 56,
+              fontSize: 36,
               lineHeight: 1,
-              letterSpacing: 2,
+              letterSpacing: 1,
               color: timerColor,
               transition: "color 0.2s",
-              minWidth: 120,
+              minWidth: 72,
               textAlign: "center",
               fontVariantNumeric: "tabular-nums",
             }}
@@ -628,15 +627,16 @@ export default function Metronome() {
           </div>
           <div
             style={{
-              fontSize: 11,
-              letterSpacing: 4,
+              fontSize: 9,
+              letterSpacing: 3,
               color: "#444",
               marginTop: 6,
               fontFamily: "'DM Mono', monospace",
               textAlign: "center",
+              whiteSpace: "nowrap",
             }}
           >
-            PRACTICE — DRAG TO ADJUST
+            PRACTICE — DRAG
           </div>
         </div>
       </div>
