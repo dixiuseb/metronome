@@ -258,6 +258,11 @@ function clampTimerSec(sec: number) {
   return Math.min(MAX_TIMER_SEC, Math.max(0, Math.round(sec)));
 }
 
+function snapTimerSec(sec: number) {
+  const clamped = clampTimerSec(sec);
+  return Math.round(clamped / TIMER_DRAG_STEP_SEC) * TIMER_DRAG_STEP_SEC;
+}
+
 export default function Metronome() {
   const [bpm, setBpm] = useState(100);
   const [playing, setPlaying] = useState(false);
@@ -354,10 +359,10 @@ export default function Metronome() {
   }, [playing]);
 
   const applyTimerSec = useCallback((sec: number) => {
-    const clamped = clampTimerSec(sec);
-    setTimerPresetSec(clamped);
+    const snapped = snapTimerSec(sec);
+    setTimerPresetSec(snapped);
     if (!playingRef.current) {
-      setTimerRemainingSec((prev) => (prev !== null ? clamped : null));
+      setTimerRemainingSec((prev) => (prev !== null ? snapped : null));
     }
   }, []);
 
@@ -422,7 +427,11 @@ export default function Metronome() {
 
   const handleTimerMouseDown = (e: React.MouseEvent) => {
     if (playingRef.current) return;
-    timerDragStart.current = { y: e.clientY, sec: timerDisplaySecRef.current };
+    const snapped = snapTimerSec(timerDisplaySecRef.current);
+    if (snapped !== timerDisplaySecRef.current) {
+      applyTimerSec(snapped);
+    }
+    timerDragStart.current = { y: e.clientY, sec: snapped };
     setTimerDragging(true);
   };
   const handleTimerMouseMove = useCallback(
@@ -455,9 +464,13 @@ export default function Metronome() {
 
   const handleTimerTouchStart = (e: React.TouchEvent) => {
     if (playingRef.current) return;
+    const snapped = snapTimerSec(timerDisplaySecRef.current);
+    if (snapped !== timerDisplaySecRef.current) {
+      applyTimerSec(snapped);
+    }
     timerDragStart.current = {
       y: e.touches[0].clientY,
-      sec: timerDisplaySecRef.current,
+      sec: snapped,
     };
   };
   const handleTimerTouchMove = (e: React.TouchEvent) => {
@@ -544,9 +557,7 @@ export default function Metronome() {
       <div
         style={{
           display: "flex",
-          alignItems: "stretch",
           justifyContent: "center",
-          gap: 10,
           marginBottom: 8,
         }}
       >
@@ -590,53 +601,6 @@ export default function Metronome() {
             }}
           >
             BPM — DRAG
-          </div>
-        </div>
-
-        <div
-          className={`timer-display${playing ? " is-locked" : ""}`}
-          onMouseDown={handleTimerMouseDown}
-          onTouchStart={handleTimerTouchStart}
-          onTouchMove={handleTimerTouchMove}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "14px 28px 12px",
-            minWidth: 108,
-            borderRadius: 4,
-            background: "#141416",
-            border: "1px solid #222",
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 36,
-              lineHeight: 1,
-              letterSpacing: 1,
-              color: timerColor,
-              transition: "color 0.2s",
-              minWidth: 72,
-              textAlign: "center",
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {formatTimer(timerDisplaySec)}
-          </div>
-          <div
-            style={{
-              fontSize: 9,
-              letterSpacing: 3,
-              color: "#444",
-              marginTop: 6,
-              fontFamily: "'DM Mono', monospace",
-              textAlign: "center",
-              whiteSpace: "nowrap",
-            }}
-          >
-            PRACTICE — DRAG
           </div>
         </div>
       </div>
@@ -716,12 +680,23 @@ export default function Metronome() {
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 36 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr auto 1fr",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 36,
+          width: "100%",
+          maxWidth: 320,
+        }}
+      >
         <button
           type="button"
           className="tap-btn"
           onClick={handleTap}
           style={{
+            justifySelf: "end",
             background: "#141416",
             border: "1px solid #2a2a2c",
             color: "#888",
@@ -794,6 +769,51 @@ export default function Metronome() {
             />
           )}
         </button>
+
+        <div
+          className={`timer-display${playing ? " is-locked" : ""}`}
+          onMouseDown={handleTimerMouseDown}
+          onTouchStart={handleTimerTouchStart}
+          onTouchMove={handleTimerTouchMove}
+          style={{
+            justifySelf: "start",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: 52,
+            minWidth: 72,
+            padding: "0 12px",
+            borderRadius: 3,
+            background: "#141416",
+            border: "1px solid #222",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: 24,
+              lineHeight: 1,
+              letterSpacing: 1,
+              color: timerColor,
+              transition: "color 0.2s",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {formatTimer(timerDisplaySec)}
+          </div>
+          <div
+            style={{
+              fontSize: 7,
+              letterSpacing: 2,
+              color: "#444",
+              marginTop: 3,
+              fontFamily: "'DM Mono', monospace",
+            }}
+          >
+            DRAG
+          </div>
+        </div>
       </div>
 
       <div style={{ marginBottom: 28 }}>
