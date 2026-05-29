@@ -8,7 +8,7 @@ Whether you drum, play another instrument, or just need a reliable click track, 
 
 - Adjust **tempo** (BPM)—drag on the large number or use ±1 / ±10
 - **Tap tempo**—tap a few beats to lock in speed
-- Set **beats per bar** (2–7)—beat one is accented so phrases stay anchored
+- Set **beats per bar** (2–8)—beat one is accented so phrases stay anchored
 - Choose from **four built-in sounds** (click, wood, hi-hat, rim)—all synthesized, no downloads
 - **Play / pause** with an obvious primary control
 

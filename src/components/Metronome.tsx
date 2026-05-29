@@ -243,7 +243,7 @@ const SOUNDS: { id: SoundId; label: string }[] = [
   { id: "rim", label: "Rimshot" },
 ];
 
-const TIME_SIGS = [2, 3, 4, 5, 6, 7] as const;
+const TIME_SIGS = [2, 3, 4, 5, 6, 7, 8] as const;
 
 export default function Metronome() {
   const [bpm, setBpm] = useState(100);

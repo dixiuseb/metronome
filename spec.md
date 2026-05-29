@@ -57,7 +57,7 @@ Four IDs, all **synthesized**: `click`, `wood`, `hi_hat`, `rim` (oscillators and
 |-----------|--------|
 | BPM range | 20–300 |
 | Tap tempo | Requires **≥2 taps** inside a sliding **3s** window; interval average → rounded BPM |
-| Beats/bar | Integers **2–7**; visually and audibly accented **beat 1** |
+| Beats/bar | Integers **2–8**; visually and audibly accented **beat 1** |
 | Tempo labels | Rough Italian-ish buckets driven by BPM (Larghetto → Prestissimo) |
 
 ### Known gaps / refactor notes

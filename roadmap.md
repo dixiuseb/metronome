@@ -15,7 +15,7 @@ These are roughly what exists in **`src/components/Metronome.tsx`** today:
 |:------:|-----------|
 | Done | BPM 20–300; drag BPM; ±1 / ±10 |
 | Done | Tap tempo (≥2 taps / 3s window) |
-| Done | Beats per bar **2–7**, accent beat 1 |
+| Done | Beats per bar **2–8**, accent beat 1 |
 | Done | Four synthetic sounds (`click`, `wood`, `hi_hat`, `rim`) |
 | Done | Beat pips synced to lookahead Web Audio scheduler |
 | Done | Play / pause |
