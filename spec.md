@@ -59,6 +59,7 @@ Four IDs, all **synthesized**: `click`, `wood`, `hi_hat`, `rim` (oscillators and
 | Tap tempo | Requires **≥2 taps** inside a sliding **3s** window; interval average → rounded BPM |
 | Beats/bar | Integers **2–8**; visually and audibly accented **beat 1** |
 | Tempo labels | Rough Italian-ish buckets driven by BPM (Larghetto → Prestissimo) |
+| Practice timer | Drag to set **M:SS** (0:00 = off); always-visible clock beside BPM; **pause freezes** remaining; auto-stop at zero |
 
 ### Known gaps / refactor notes
 
@@ -85,7 +86,9 @@ Concrete ordering lives in **`roadmap.md`**. Brief semantics here constrain impl
 
 **Anti-goals:** Push notifications, history/streak dashboards, motivational copy as first-class UX.
 
-**Open choice:** Pausing playback should either **freeze** practice time (common for “5 minutes playing”) or use **wall clock** countdown (simpler but can feel punitive). Decide once and align UI copy.
+**UI:** Always-visible **M:SS** clock beside BPM; **drag up/down** in 15-second steps (0:00 = timer off). Locked while playing; editable when idle or paused. No preset buttons or dialogs.
+
+**Open choice:** Pausing playback should either **freeze** practice time (common for “5 minutes playing”) or use **wall clock** countdown (simpler but can feel punitive). **Decision: pause freezes the clock**; resume continues from remaining time; a fresh session starts from the preset when remaining was exhausted or cleared.
 
 ### Tempo progression
 
