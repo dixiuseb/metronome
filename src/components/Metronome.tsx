@@ -25,6 +25,7 @@ function createAudioEngine() {
   let soundType: SoundId = "click";
   let accentPattern: AccentLevel[] = defaultBeatAccents(4);
   let onBeat: ((beatIndex: number) => void) | null = null;
+  let masterGain: GainNode | null = null;
   /** Stops future clicks when `stop()` runs (dev Strict Mode double-mount, pause, etc.). */
   let scheduledSources: AudioScheduledSourceNode[] = [];
   /** Bumped in `stop()` so stale `setTimeout` chains and UI callbacks no-op. */
@@ -44,6 +45,28 @@ function createAudioEngine() {
       ctx = new Ctor();
     }
     return ctx;
+  }
+
+  function getMasterGain(): GainNode {
+    const c = getCtx();
+    if (!masterGain) {
+      masterGain = c.createGain();
+      masterGain.gain.value = 1;
+      masterGain.connect(c.destination);
+    }
+    return masterGain;
+  }
+
+  /** iOS/Safari: resume must finish before scheduling; silent buffer helps unlock. */
+  function unlockAudio(): Promise<AudioContext> {
+    const c = getCtx();
+    const buffer = c.createBuffer(1, 1, c.sampleRate);
+    const src = c.createBufferSource();
+    src.buffer = buffer;
+    src.connect(getMasterGain());
+    src.start(0);
+    src.stop(0);
+    return c.state === "suspended" ? c.resume().then(() => c) : Promise.resolve(c);
   }
 
   function trackSource(node: AudioScheduledSourceNode) {
@@ -88,7 +111,7 @@ function createAudioEngine() {
         const osc = c.createOscillator();
         const gain = c.createGain();
         osc.connect(gain);
-        gain.connect(c.destination);
+        gain.connect(getMasterGain());
         osc.frequency.value = lerp(1200, 1800, level);
         gain.gain.setValueAtTime(lerp(0.6, 0.9, level), time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
@@ -110,7 +133,7 @@ function createAudioEngine() {
         src.buffer = buf;
         src.connect(filter);
         filter.connect(gain);
-        gain.connect(c.destination);
+        gain.connect(getMasterGain());
         gain.gain.setValueAtTime(lerp(0.8, 1.2, level), time);
         trackSource(src);
         src.start(time);
@@ -128,33 +151,33 @@ function createAudioEngine() {
         src.buffer = buf;
         src.connect(filter);
         filter.connect(gain);
-        gain.connect(c.destination);
+        gain.connect(getMasterGain());
         gain.gain.setValueAtTime(lerp(0.5, 0.8, level), time);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
         trackSource(src);
         src.start(time);
       },
       rim: () => {
-        const c2 = getCtx();
-        const osc = c2.createOscillator();
-        const oscGain = c2.createGain();
+        const c = getCtx();
+        const osc = c.createOscillator();
+        const oscGain = c.createGain();
         osc.frequency.value = lerp(320, 400, level);
         osc.connect(oscGain);
-        oscGain.connect(c2.destination);
+        oscGain.connect(getMasterGain());
         oscGain.gain.setValueAtTime(lerp(0.4, 0.6, level), time);
         oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
         trackSource(osc);
         osc.start(time);
         osc.stop(time + 0.03);
-        const buf = c2.createBuffer(1, c2.sampleRate * 0.03, c2.sampleRate);
+        const buf = c.createBuffer(1, c.sampleRate * 0.03, c.sampleRate);
         const noise = buf.getChannelData(0);
         for (let i = 0; i < noise.length; i++)
           noise[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / noise.length, 6);
-        const src = c2.createBufferSource();
-        const nGain = c2.createGain();
+        const src = c.createBufferSource();
+        const nGain = c.createGain();
         src.buffer = buf;
         src.connect(nGain);
-        nGain.connect(c2.destination);
+        nGain.connect(getMasterGain());
         nGain.gain.setValueAtTime(lerp(0.3, 0.5, level), time);
         trackSource(src);
         src.start(time);
@@ -181,38 +204,41 @@ function createAudioEngine() {
       accentPattern =
         accents.length === beats ? accents : defaultBeatAccents(beats);
       onBeat = callback;
-      const c = getCtx();
-      if (c.state === "suspended") void c.resume();
-      currentBeat = 0;
-      nextBeatTime = c.currentTime + 0.05;
 
-      function scheduleBeats() {
+      void unlockAudio().then((c) => {
         if (sessionGeneration !== playbackGeneration) return;
 
-        while (nextBeatTime < c.currentTime + SCHEDULE_AHEAD) {
-          const beatIndex = currentBeat;
-          const accentLevel = accentPattern[beatIndex] ?? 0;
-          const scheduledTime = nextBeatTime;
-          playClick(scheduledTime, accentLevel);
+        currentBeat = 0;
+        nextBeatTime = c.currentTime + 0.05;
 
-          const delay = Math.max(0, (scheduledTime - c.currentTime) * 1000);
-          beatCallbackTimers.push(
-            setTimeout(() => {
-              if (sessionGeneration !== playbackGeneration) return;
-              onBeat?.(beatIndex);
-            }, delay),
-          );
-
-          currentBeat = (currentBeat + 1) % beatsPerBar;
-          nextBeatTime += 60.0 / bpm;
-        }
-        schedulerTimer = setTimeout(() => {
+        function scheduleBeats() {
           if (sessionGeneration !== playbackGeneration) return;
-          scheduleBeats();
-        }, LOOKAHEAD);
-      }
 
-      scheduleBeats();
+          while (nextBeatTime < c.currentTime + SCHEDULE_AHEAD) {
+            const beatIndex = currentBeat;
+            const accentLevel = accentPattern[beatIndex] ?? 0;
+            const scheduledTime = nextBeatTime;
+            playClick(scheduledTime, accentLevel);
+
+            const delay = Math.max(0, (scheduledTime - c.currentTime) * 1000);
+            beatCallbackTimers.push(
+              setTimeout(() => {
+                if (sessionGeneration !== playbackGeneration) return;
+                onBeat?.(beatIndex);
+              }, delay),
+            );
+
+            currentBeat = (currentBeat + 1) % beatsPerBar;
+            nextBeatTime += 60.0 / bpm;
+          }
+          schedulerTimer = setTimeout(() => {
+            if (sessionGeneration !== playbackGeneration) return;
+            scheduleBeats();
+          }, LOOKAHEAD);
+        }
+
+        scheduleBeats();
+      });
     },
     stop() {
       stopScheduler();
@@ -234,6 +260,7 @@ function createAudioEngine() {
           ? accents
           : defaultBeatAccents(beatsPerBar);
     },
+    unlockAudio,
   };
 }
 
@@ -455,6 +482,7 @@ export default function Metronome() {
   }, []);
 
   const handleTap = useTapTempo((tappedBpm) => {
+    void engine.unlockAudio();
     setBpm(tappedBpm);
     if (playing) engine.setBpm(tappedBpm);
   });
