@@ -26,9 +26,9 @@ What exists in **`src/components/Metronome.tsx`** today. This is the feature set
 
 ---
 
-## Next up — PWA & device-ready demo
+## Next up — PWA device testing
 
-**Goal:** Install on a phone/tablet, use at the kit, and see how it *feels*—without Capacitor or an app store yet.
+**Goal:** Install on a phone/tablet, use at the kit, and see how it *feels* before wrapping for the store. PWA is the **validation layer**; Capacitor is the **App Store path** (see below)—not an either/or fork.
 
 | Priority | Task | Status |
 |:--------:|------|:------:|
@@ -64,30 +64,47 @@ Open on your phone over **HTTPS** (localhost alone won’t install on iOS). For 
 
 ---
 
-## v1.x — polish (after device test)
+## v1.x — polish (before Capacitor)
+
+**Order:** finish any known UI fixes here, keep testing on the PWA build, then start Capacitor. Same web UI ships inside the native wrapper—polish the web app first so you’re not chasing layout issues through Xcode rebuilds.
 
 Informed by **how it feels in use**, not speculation. Candidate bucket—pick only what real friction justifies:
 
 | Area | Examples |
 |------|-----------|
-| **Design / UX** | Typography (`next/font`), spacing, touch targets, color tweaks, idle vs playing states |
+| **Design / UX** | Typography (`next/font`), spacing, touch targets, color tweaks, idle vs playing states; **known UI fix in flight** |
 | **Ergonomics** | Spacebar play/pause, master volume |
 | **Quality** | Strict Mode / engine edge cases already handled; any Safari-specific fixes from checklist |
+| **iOS audio (PWA)** | Silent-switch workaround via media channel; replace with native `AVAudioSession` in Capacitor |
 
 No new feature categories here unless device testing exposes a clear gap.
 
 ---
 
-## v2 — deferred
+## App Store — Capacitor (after v1.x + device sign-off)
 
-Explicitly **not** v1. Revisit only if personal use still wants them after living with the PWA build.
+**Goal:** Ship Pocket Click on the App Store (and optionally Play Store) using **Capacitor** to wrap the existing Next.js app—not a rewrite.
+
+| Phase | Task |
+|-------|------|
+| Scaffold | `@capacitor/core`, iOS/Android projects, static export or bundled web assets |
+| Native audio | iOS **playback** audio session so clicks work with the hardware mute switch (replaces PWA silent-loop hack) |
+| Store polish | Splash, privacy policy, TestFlight → App Store review |
+| Android | Same wrapper; no hardware mute switch issue, but shared packaging path |
+
+PWA work (manifest, icons, Serwist) is **not throwaway**—icons and offline behavior carry over; the service worker is web/PWA-specific and may be simplified or dropped in the native shell.
+
+---
+
+## v2 — deferred features
+
+Explicitly **not** v1 or the store release. Revisit only if personal use still wants them after living with the shipped app.
 
 | Feature | Notes |
 |---------|--------|
 | **Tempo progression** | Start/end BPM, one pacing model—no program builder (see `spec.md`) |
 | **Subdivisions** | 8ths, triplets—display and/or clicks |
 | **Pattern presets** | Rock / hat patterns—scheduler complexity |
-| **Capacitor** | Native wrapper if PWA install or iOS limits aren’t enough |
 
 ---
 

@@ -11,7 +11,8 @@ Related docs: **[README.md](README.md)** (user-facing intro), **[roadmap.md](roa
 - **Next.js** (App Router), **React**, **TypeScript**
 - **Tailwind CSS v4** (global styling; large parts of the metronome still use inline styles from the prototype)
 - **PWA:** `@serwist/turbopack` service worker, `src/app/manifest.ts`, icons in `public/icons/`
-- **Capacitor** (native wrapper) — v2 if PWA isn’t enough on iOS
+- **PWA first:** device validation and installable demo over HTTPS
+- **Capacitor** (planned) — native wrapper for App Store / Play Store; native `AVAudioSession` on iOS for reliable playback with mute switch
 
 ---
 
@@ -77,7 +78,7 @@ Four IDs, all **synthesized**: `click`, `wood`, `hi_hat`, `rim` (oscillators and
 | **`useEffect([playing])` + engine** | **Removed.** Play/pause now call `engine.start()` / `engine.stop()` directly from the button handler (user gesture + no effect cleanup races). Parameter sync while playing uses effects keyed only on `bpm` / `beats` / `sound`, not `playing`. |
 | **Module singleton engine** | One module-level instance is fine for a single route. `stopScheduler()` stops queued sources, **clears pending beat `setTimeout`s**, disconnects nodes, and bumps a **generation** counter so stale callbacks no-op. |
 | **Visual pulse** | Beat pips only; optional full-frame flash deferred. |
-| **Mobile / iOS** | `AudioContext` may start suspended; `resume()` on start is wired—still verify **Safari**. |
+| **Mobile / iOS** | `AudioContext` may start suspended; `resume()` before scheduling. **Silent switch:** loop inaudible HTML `<audio>` during playback so Web Audio uses the media channel (best-effort; not guaranteed on every iOS version). |
 | **Fonts** | Bebas Neue + DM Mono still loaded via **`@import` inside the component**. Prefer **`next/font/google`** to reduce CLS and satisfy Next idioms—see roadmap. |
 
 ---
@@ -124,7 +125,8 @@ Technical framing only—prioritization sits in roadmap.
 | **Pattern presets** | Multi-event scheduling layering on scheduler |
 | **Keyboard** | Play/pause, doc other shortcuts |
 | **Volume / accent shaping** | Gain nodes or per-hit envelopes tied to UX |
-| **PWA / Capacitor** | Packaging, splash, optionally offline caches |
+| **PWA** | Installable web build; Serwist offline shell |
+| **Capacitor** | App Store packaging, splash, native audio session |
 
 ---
 
