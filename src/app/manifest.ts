@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Pocket Click",
+    name: "Pocket Click 1",
     short_name: "Pocket Click",
     description: "A no-frills metronome for practice.",
     start_url: "/",
