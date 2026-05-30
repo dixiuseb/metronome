@@ -30,16 +30,28 @@ What exists in **`src/components/Metronome.tsx`** today. This is the feature set
 
 **Goal:** Install on a phone/tablet, use at the kit, and see how it *feels*—without Capacitor or an app store yet.
 
-| Priority | Task |
-|:--------:|------|
-| P0 | **Web app manifest** (`manifest.json` / Next metadata): name, theme colors, `standalone` display |
-| P0 | **App icons** — at minimum sizes needed for iOS “Add to Home Screen” and Android install |
-| P0 | **Deploy** a stable HTTPS URL (e.g. Vercel) so mobile install and Web Audio behave like production |
-| P1 | **iOS Safari smoke test** — audio unlock on first tap, background/lock-screen behavior, timer pause semantics |
-| P1 | **Offline shell** — cache static assets so the installed app loads without network (audio engine is already local) |
-| P2 | **`apple-mobile-web-app-*` meta** — status bar / title polish for home-screen launch |
+| Priority | Task | Status |
+|:--------:|------|:------:|
+| P0 | **Web app manifest** — name, theme colors, `standalone` display | Done |
+| P0 | **App icons** — 192 / 512 / Apple touch (generated via `npm run generate-icons`) | Done |
+| P0 | **Service worker** — `@serwist/turbopack`; precache + offline fallback at `/~offline` | Done |
+| P0 | **Deploy** a stable HTTPS URL (e.g. Vercel) so mobile install and Web Audio behave like production | **You** |
+| P1 | **iOS Safari smoke test** — use device checklist below | Pending |
+| P1 | **Offline shell** — Serwist precaches static assets; metronome audio is synthesized in-browser | Done |
+| P2 | **`apple-mobile-web-app-*` meta** — via Next `metadata.appleWebApp` + theme color | Done |
 
-### Device test checklist (use this when PWA is up)
+### Install locally (production build)
+
+```bash
+npm run build
+npm start
+```
+
+Open on your phone over **HTTPS** (localhost alone won’t install on iOS). For local device testing, use a tunnel (e.g. `ngrok`) or deploy first.
+
+**Add to Home Screen:** Safari → Share → Add to Home Screen. Android Chrome → menu → Install app / Add to Home screen.
+
+### Device test checklist (use this when deployed)
 
 - [ ] Add to home screen (iOS + Android if available)
 - [ ] Play/pause from cold start; no double downbeat

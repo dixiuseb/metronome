@@ -10,7 +10,8 @@ Related docs: **[README.md](README.md)** (user-facing intro), **[roadmap.md](roa
 
 - **Next.js** (App Router), **React**, **TypeScript**
 - **Tailwind CSS v4** (global styling; large parts of the metronome still use inline styles from the prototype)
-- Optional futures called out explicitly: **Capacitor** (native wrapper), **PWA** manifest (install without store)
+- **PWA:** `@serwist/turbopack` service worker, `src/app/manifest.ts`, icons in `public/icons/`
+- **Capacitor** (native wrapper) — v2 if PWA isn’t enough on iOS
 
 ---
 
@@ -18,9 +19,15 @@ Related docs: **[README.md](README.md)** (user-facing intro), **[roadmap.md](roa
 
 | Path | Role |
 |------|------|
-| `src/app/layout.tsx` | Root layout, site metadata (“Pocket Click”) |
+| `src/app/layout.tsx` | Root layout, PWA metadata, `PWAProvider` |
+| `src/app/manifest.ts` | Web app manifest |
+| `src/app/sw.ts` | Serwist service worker source |
+| `src/app/serwist/[path]/route.ts` | Builds/serves `/serwist/sw.js` at build time |
+| `src/app/~offline/page.tsx` | Offline fallback document |
 | `src/app/page.tsx` | Home page; renders the metronome |
 | `src/components/Metronome.tsx` | Client component: UI + Web Audio scheduler + tap tempo |
+| `src/components/PWAProvider.tsx` | Registers service worker (client) |
+| `public/icons/` | Generated PNG/SVG app icons (`npm run generate-icons`) |
 
 ---
 
@@ -59,7 +66,9 @@ Four IDs, all **synthesized**: `click`, `wood`, `hi_hat`, `rim` (oscillators and
 | Tap tempo | Requires **≥2 taps** inside a sliding **3s** window; interval average → rounded BPM |
 | Beats/bar | Integers **2–8**; visually and audibly accented **beat 1** |
 | Tempo labels | Rough Italian-ish buckets driven by BPM (Larghetto → Prestissimo) |
-| Practice timer | Drag to set **M:SS** (0:00 = off); always-visible clock beside BPM; **pause freezes** remaining; auto-stop at zero |
+| Practice timer | Draggable M:SS next to play; 15s snap; pause freezes; auto-stop at zero |
+| Per-beat accents | Pips cycle normal / medium / strong; audio + size reflect level |
+| PWA | Installable; Serwist precache; `/~offline` fallback; theme `#0e0e0f` |
 
 ### Known gaps / refactor notes
 
