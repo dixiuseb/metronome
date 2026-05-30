@@ -24,8 +24,8 @@ const SILENT_MP3 =
 
 let mediaChannelAudio: HTMLAudioElement | null = null;
 
-function startMediaChannel() {
-  if (typeof document === "undefined") return;
+function startMediaChannel(): Promise<void> {
+  if (typeof document === "undefined") return Promise.resolve();
   if (!mediaChannelAudio) {
     mediaChannelAudio = document.createElement("audio");
     mediaChannelAudio.setAttribute("playsinline", "");
@@ -38,8 +38,8 @@ function startMediaChannel() {
     mediaChannelAudio.style.display = "none";
     document.body.appendChild(mediaChannelAudio);
   }
-  if (!mediaChannelAudio.paused) return;
-  void mediaChannelAudio.play().catch(() => {
+  if (!mediaChannelAudio.paused) return Promise.resolve();
+  return mediaChannelAudio.play().catch(() => {
     /* needs a user gesture — start() is always called from one */
   });
 }
@@ -241,9 +241,9 @@ function createAudioEngine() {
         accents.length === beats ? accents : defaultBeatAccents(beats);
       onBeat = callback;
 
-      startMediaChannel();
+      void Promise.all([startMediaChannel(), unlockAudio()]).then(([, c]) => {
+        if (sessionGeneration !== playbackGeneration) return;
 
-      const begin = () => {
         currentBeat = 0;
         nextBeatTime = c.currentTime + 0.05;
 
@@ -274,14 +274,7 @@ function createAudioEngine() {
         }
 
         scheduleBeats();
-      };
-
-      const c = getCtx();
-      if (c.state === "suspended") {
-        void c.resume().then(begin);
-      } else {
-        begin();
-      }
+      });
     },
     stop() {
       stopScheduler();
@@ -526,7 +519,7 @@ export default function Metronome() {
   }, []);
 
   const handleTap = useTapTempo((tappedBpm) => {
-    startMediaChannel();
+    void Promise.all([startMediaChannel(), engine.unlockAudio()]);
     setBpm(tappedBpm);
     if (playing) engine.setBpm(tappedBpm);
   });
@@ -566,6 +559,7 @@ export default function Metronome() {
   };
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!dragStart.current) return;
+    e.preventDefault();
     const delta = Math.round((dragStart.current.y - e.touches[0].clientY) / 2);
     const newBpm = Math.min(300, Math.max(20, dragStart.current.bpm + delta));
     setBpm(newBpm);
@@ -622,6 +616,7 @@ export default function Metronome() {
   };
   const handleTimerTouchMove = (e: React.TouchEvent) => {
     if (!timerDragStart.current || playingRef.current) return;
+    e.preventDefault();
     const deltaSteps = Math.round(
       (timerDragStart.current.y - e.touches[0].clientY) / 6,
     );
@@ -658,7 +653,11 @@ export default function Metronome() {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        height: "100%",
+        minHeight: "100dvh",
+        maxHeight: "100dvh",
+        width: "100%",
+        overflow: "hidden",
         background: "#0e0e0f",
         display: "flex",
         flexDirection: "column",
@@ -667,6 +666,7 @@ export default function Metronome() {
         fontFamily: "'DM Mono', 'Courier New', monospace",
         padding: "24px",
         userSelect: "none",
+        touchAction: "none",
       }}
     >
       <style>{`
@@ -692,9 +692,9 @@ export default function Metronome() {
         .play-btn:hover { transform: scale(1.04); }
         .play-btn:active { transform: scale(0.97); }
         .tap-btn:active { background: #2a2a2c !important; transform: scale(0.97); }
-        .bpm-display { cursor: ns-resize; }
+        .bpm-display { cursor: ns-resize; touch-action: none; }
         .bpm-display:active { opacity: 0.85; }
-        .timer-display { cursor: ns-resize; }
+        .timer-display { cursor: ns-resize; touch-action: none; }
         .timer-display:active { opacity: 0.85; }
         .timer-display.is-locked { cursor: not-allowed; opacity: 0.85; }
         .time-btn:hover { border-color: #e8e0d0 !important; color: #e8e0d0 !important; }

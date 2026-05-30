@@ -44,8 +44,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-[#0e0e0f] text-[#e8e0d0]">
+    <html lang="en" className="h-full overflow-hidden overscroll-none">
+      <body className="fixed inset-0 flex h-full w-full touch-none flex-col overflow-hidden overscroll-none bg-[#0e0e0f] text-[#e8e0d0] antialiased">
         <PWAProvider>{children}</PWAProvider>
       </body>
     </html>
