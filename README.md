@@ -12,6 +12,17 @@ Whether you drum, play another instrument, or just need a reliable click track, 
 - Choose from **four built-in sounds** (click, wood, hi-hat, rim)—all synthesized, no downloads
 - **Play / pause** with an obvious primary control
 - **Practice timer** (optional)—drag the clock to set a duration (0:00 = off); counts down and stops when time's up
+- **Per-beat accents**—tap the dots to cycle normal / medium / strong
+- **Install as a PWA**—add to home screen after deploying over HTTPS (see below)
+
+## Install on your phone (PWA)
+
+1. Deploy to a host with HTTPS (e.g. [Vercel](https://vercel.com)—connect this repo and deploy).
+2. Open the URL on your phone.
+3. **iOS Safari:** Share → **Add to Home Screen**
+4. **Android Chrome:** Menu → **Install app** or **Add to Home screen**
+
+The app runs standalone (no browser chrome), caches static assets for offline load, and uses the same Web Audio engine as the desktop site.
 
 ## Try it locally
 
