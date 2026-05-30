@@ -14,6 +14,42 @@ function lerp(a: number, b: number, level: AccentLevel) {
   return a + (b - a) * (level / 2);
 }
 
+/**
+ * iOS routes Web Audio through the "ringer" channel (muted by the hardware switch).
+ * Looping silent HTML audio activates the "media" channel so clicks stay audible.
+ * @see https://www.audjust.com/blog/unmute-web-audio-on-ios
+ */
+const SILENT_MP3 =
+  "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAADAAAGhgBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVWqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqr///////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRAmHAAAAAAD/+xDEAAvAAAGkAAAAIAAANIAAAARMQU1FMy45OC4xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//uQZAAAAAGkAAAAAAAA0gAAAAAAABpAGkqJAAAc0gAAABjBExBTUUzLjEyMDKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqv/7kGQADAPAAAGkAAAAIAAANIAAAARMQU1FMy44LDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV";
+
+let mediaChannelAudio: HTMLAudioElement | null = null;
+
+function startMediaChannel() {
+  if (typeof document === "undefined") return;
+  if (!mediaChannelAudio) {
+    mediaChannelAudio = document.createElement("audio");
+    mediaChannelAudio.setAttribute("playsinline", "");
+    mediaChannelAudio.setAttribute("webkit-playsinline", "true");
+    mediaChannelAudio.setAttribute("x-webkit-airplay", "deny");
+    mediaChannelAudio.preload = "auto";
+    mediaChannelAudio.loop = true;
+    mediaChannelAudio.volume = 0.01;
+    mediaChannelAudio.src = SILENT_MP3;
+    mediaChannelAudio.style.display = "none";
+    document.body.appendChild(mediaChannelAudio);
+  }
+  if (!mediaChannelAudio.paused) return;
+  void mediaChannelAudio.play().catch(() => {
+    /* needs a user gesture — start() is always called from one */
+  });
+}
+
+function stopMediaChannel() {
+  if (!mediaChannelAudio || mediaChannelAudio.paused) return;
+  mediaChannelAudio.pause();
+  mediaChannelAudio.currentTime = 0;
+}
+
 // ─── Audio Engine ───────────────────────────────────────────────────────────
 function createAudioEngine() {
   let ctx: AudioContext | null = null;
@@ -181,41 +217,52 @@ function createAudioEngine() {
       accentPattern =
         accents.length === beats ? accents : defaultBeatAccents(beats);
       onBeat = callback;
-      const c = getCtx();
-      if (c.state === "suspended") void c.resume();
-      currentBeat = 0;
-      nextBeatTime = c.currentTime + 0.05;
 
-      function scheduleBeats() {
-        if (sessionGeneration !== playbackGeneration) return;
+      startMediaChannel();
 
-        while (nextBeatTime < c.currentTime + SCHEDULE_AHEAD) {
-          const beatIndex = currentBeat;
-          const accentLevel = accentPattern[beatIndex] ?? 0;
-          const scheduledTime = nextBeatTime;
-          playClick(scheduledTime, accentLevel);
+      const begin = () => {
+        currentBeat = 0;
+        nextBeatTime = c.currentTime + 0.05;
 
-          const delay = Math.max(0, (scheduledTime - c.currentTime) * 1000);
-          beatCallbackTimers.push(
-            setTimeout(() => {
-              if (sessionGeneration !== playbackGeneration) return;
-              onBeat?.(beatIndex);
-            }, delay),
-          );
-
-          currentBeat = (currentBeat + 1) % beatsPerBar;
-          nextBeatTime += 60.0 / bpm;
-        }
-        schedulerTimer = setTimeout(() => {
+        function scheduleBeats() {
           if (sessionGeneration !== playbackGeneration) return;
-          scheduleBeats();
-        }, LOOKAHEAD);
-      }
 
-      scheduleBeats();
+          while (nextBeatTime < c.currentTime + SCHEDULE_AHEAD) {
+            const beatIndex = currentBeat;
+            const accentLevel = accentPattern[beatIndex] ?? 0;
+            const scheduledTime = nextBeatTime;
+            playClick(scheduledTime, accentLevel);
+
+            const delay = Math.max(0, (scheduledTime - c.currentTime) * 1000);
+            beatCallbackTimers.push(
+              setTimeout(() => {
+                if (sessionGeneration !== playbackGeneration) return;
+                onBeat?.(beatIndex);
+              }, delay),
+            );
+
+            currentBeat = (currentBeat + 1) % beatsPerBar;
+            nextBeatTime += 60.0 / bpm;
+          }
+          schedulerTimer = setTimeout(() => {
+            if (sessionGeneration !== playbackGeneration) return;
+            scheduleBeats();
+          }, LOOKAHEAD);
+        }
+
+        scheduleBeats();
+      };
+
+      const c = getCtx();
+      if (c.state === "suspended") {
+        void c.resume().then(begin);
+      } else {
+        begin();
+      }
     },
     stop() {
       stopScheduler();
+      stopMediaChannel();
     },
     setBpm(b: number) {
       bpm = b;
@@ -455,6 +502,7 @@ export default function Metronome() {
   }, []);
 
   const handleTap = useTapTempo((tappedBpm) => {
+    startMediaChannel();
     setBpm(tappedBpm);
     if (playing) engine.setBpm(tappedBpm);
   });
