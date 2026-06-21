@@ -24,8 +24,8 @@ const SILENT_MP3 =
 
 let mediaChannelAudio: HTMLAudioElement | null = null;
 
-function startMediaChannel(): Promise<void> {
-  if (typeof document === "undefined") return Promise.resolve();
+function startMediaChannel() {
+  if (typeof document === "undefined") return;
   if (!mediaChannelAudio) {
     mediaChannelAudio = document.createElement("audio");
     mediaChannelAudio.setAttribute("playsinline", "");
@@ -38,8 +38,8 @@ function startMediaChannel(): Promise<void> {
     mediaChannelAudio.style.display = "none";
     document.body.appendChild(mediaChannelAudio);
   }
-  if (!mediaChannelAudio.paused) return Promise.resolve();
-  return mediaChannelAudio.play().catch(() => {
+  if (!mediaChannelAudio.paused) return;
+  void mediaChannelAudio.play().catch(() => {
     /* needs a user gesture — start() is always called from one */
   });
 }
@@ -241,7 +241,9 @@ function createAudioEngine() {
         accents.length === beats ? accents : defaultBeatAccents(beats);
       onBeat = callback;
 
-      void Promise.all([startMediaChannel(), unlockAudio()]).then(([, c]) => {
+      startMediaChannel();
+
+      void unlockAudio().then((c) => {
         if (sessionGeneration !== playbackGeneration) return;
 
         currentBeat = 0;
@@ -519,7 +521,8 @@ export default function Metronome() {
   }, []);
 
   const handleTap = useTapTempo((tappedBpm) => {
-    void Promise.all([startMediaChannel(), engine.unlockAudio()]);
+    startMediaChannel();
+    void engine.unlockAudio();
     setBpm(tappedBpm);
     if (playing) engine.setBpm(tappedBpm);
   });
