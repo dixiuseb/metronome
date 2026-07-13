@@ -36,7 +36,7 @@ What exists in **`src/components/Metronome.tsx`** today. This is the feature set
 | P0 | **App icons** — 192 / 512 / Apple touch (generated via `npm run generate-icons`) | Done |
 | P0 | **Service worker** — `@serwist/turbopack`; precache + offline fallback at `/~offline` | Done |
 | P0 | **Deploy** a stable HTTPS URL (e.g. Vercel) so mobile install and Web Audio behave like production | **You** |
-| P1 | **iOS Safari smoke test** — use device checklist below | Pending |
+| P1 | **iOS Safari smoke test** — device checklist below | Done |
 | P1 | **Offline shell** — Serwist precaches static assets; metronome audio is synthesized in-browser | Done |
 | P2 | **`apple-mobile-web-app-*` meta** — via Next `metadata.appleWebApp` + theme color | Done |
 
@@ -53,14 +53,14 @@ Open on your phone over **HTTPS** (localhost alone won’t install on iOS). For 
 
 ### Device test checklist (use this when deployed)
 
-- [ ] Add to home screen (iOS + Android if available)
-- [ ] Play/pause from cold start; no double downbeat
-- [ ] Drag BPM and timer with a finger
-- [ ] Tap tempo while playing
-- [ ] Practice timer: pause mid-run, adjust, resume; auto-stop at zero
-- [ ] Per-beat accent toggles audible and visible
-- [ ] Beats-per-bar change while stopped
-- [ ] Screen layout: no scroll, controls reachable one-handed
+- [x] Add to home screen (iOS + Android if available)
+- [x] Play/pause from cold start; no double downbeat
+- [x] Drag BPM and timer with a finger
+- [x] Tap tempo while playing
+- [x] Practice timer: pause mid-run, adjust, resume; auto-stop at zero
+- [x] Per-beat accent toggles audible and visible
+- [x] Beats-per-bar change while stopped — tap **2–8** time-sig buttons at the bottom while paused; pip count updates, accents make sense, first downbeat after play matches
+- [x] Screen layout: no scroll, controls reachable one-handed
 
 ---
 
