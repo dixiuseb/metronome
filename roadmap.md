@@ -17,7 +17,7 @@ What exists in **`src/components/Metronome.tsx`** today. This is the feature set
 | Done | Tap tempo (≥2 taps / 3s window) |
 | Done | Beats per bar **2–8** |
 | Done | **Per-beat accents** — click pips to cycle normal / medium / strong |
-| Done | Four synthetic sounds (`click`, `wood`, `hi_hat`, `rim`) |
+| Done | **Click** sound — synthesized oscillator tick |
 | Done | Beat pips synced to lookahead Web Audio scheduler |
 | Done | Play / pause (tap left, play center, timer right) |
 | Done | **Practice timer** — draggable M:SS (0:00 = off); 15s snap; pause freezes; auto-stop at zero |
@@ -72,10 +72,11 @@ Informed by **how it feels in use**, not speculation. Candidate bucket—pick on
 
 | Area | Examples |
 |------|-----------|
-| **Design / UX** | Typography (`next/font`), spacing, touch targets, color tweaks, idle vs playing states; **known UI fix in flight** |
+| **Design / UX** | Typography (`next/font`), spacing, touch targets, color tweaks, idle vs playing states |
 | **Ergonomics** | Spacebar play/pause, master volume |
 | **Quality** | Strict Mode / engine edge cases already handled; any Safari-specific fixes from checklist |
 | **iOS audio (PWA)** | Silent-switch workaround via media channel; replace with native `AVAudioSession` in Capacitor |
+| **Sound samples** | Optional later — v1 uses one synthesized click only |
 
 No new feature categories here unless device testing exposes a clear gap.
 

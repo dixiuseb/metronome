@@ -2,14 +2,13 @@
 
 **Pocket Click** is a straightforward metronome for practice: steady clicks, simple controls, and a dark “gear on the bench” look. No ads, no sign-up, no in-app purchases, and no fluff.
 
-Whether you drum, play another instrument, or just need a reliable click track, the idea is **one focused screen**—fast tempo changes, tap tempo, a few distinct sounds, and a clear pulse you can actually use with headphones.
+Whether you drum, play another instrument, or just need a reliable click track, the idea is **one focused screen**—fast tempo changes, tap tempo, a clear pulse you can actually use with headphones.
 
 ## What you can do today
 
 - Adjust **tempo** (BPM)—drag on the large number or use ±1 / ±10
 - **Tap tempo**—tap a few beats to lock in speed
 - Set **beats per bar** (2–8)—beat one is accented so phrases stay anchored
-- Choose from **four built-in sounds** (click, wood, hi-hat, rim)—all synthesized, no downloads
 - **Play / pause** with an obvious primary control
 - **Practice timer** (optional)—drag the clock to set a duration (0:00 = off); counts down and stops when time's up
 - **Per-beat accents**—tap the dots to cycle normal / medium / strong

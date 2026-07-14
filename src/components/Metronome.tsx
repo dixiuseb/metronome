@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-type SoundId = "click" | "wood" | "hi_hat" | "rim";
 /** 0 = normal, 1 = medium accent, 2 = strong accent */
 type AccentLevel = 0 | 1 | 2;
 
@@ -58,7 +57,6 @@ function createAudioEngine() {
   let schedulerTimer: ReturnType<typeof setTimeout> | null = null;
   let bpm = 120;
   let beatsPerBar = 4;
-  let soundType: SoundId = "click";
   let accentPattern: AccentLevel[] = defaultBeatAccents(4);
   let onBeat: ((beatIndex: number) => void) | null = null;
   let masterGain: GainNode | null = null;
@@ -142,91 +140,22 @@ function createAudioEngine() {
 
   function playClick(time: number, level: AccentLevel) {
     const c = getCtx();
-    const sounds: Record<SoundId, () => void> = {
-      click: () => {
-        const osc = c.createOscillator();
-        const gain = c.createGain();
-        osc.connect(gain);
-        gain.connect(getMasterGain());
-        osc.frequency.value = lerp(1200, 1800, level);
-        gain.gain.setValueAtTime(lerp(0.6, 0.9, level), time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
-        trackSource(osc);
-        osc.start(time);
-        osc.stop(time + 0.05);
-      },
-      wood: () => {
-        const buf = c.createBuffer(1, c.sampleRate * 0.05, c.sampleRate);
-        const data = buf.getChannelData(0);
-        for (let i = 0; i < data.length; i++)
-          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
-        const src = c.createBufferSource();
-        const gain = c.createGain();
-        const filter = c.createBiquadFilter();
-        filter.type = "bandpass";
-        filter.frequency.value = lerp(600, 900, level);
-        filter.Q.value = 8;
-        src.buffer = buf;
-        src.connect(filter);
-        filter.connect(gain);
-        gain.connect(getMasterGain());
-        gain.gain.setValueAtTime(lerp(0.8, 1.2, level), time);
-        trackSource(src);
-        src.start(time);
-      },
-      hi_hat: () => {
-        const buf = c.createBuffer(1, c.sampleRate * 0.06, c.sampleRate);
-        const data = buf.getChannelData(0);
-        for (let i = 0; i < data.length; i++)
-          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 4);
-        const src = c.createBufferSource();
-        const gain = c.createGain();
-        const filter = c.createBiquadFilter();
-        filter.type = "highpass";
-        filter.frequency.value = 7000;
-        src.buffer = buf;
-        src.connect(filter);
-        filter.connect(gain);
-        gain.connect(getMasterGain());
-        gain.gain.setValueAtTime(lerp(0.5, 0.8, level), time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
-        trackSource(src);
-        src.start(time);
-      },
-      rim: () => {
-        const c = getCtx();
-        const osc = c.createOscillator();
-        const oscGain = c.createGain();
-        osc.frequency.value = lerp(320, 400, level);
-        osc.connect(oscGain);
-        oscGain.connect(getMasterGain());
-        oscGain.gain.setValueAtTime(lerp(0.4, 0.6, level), time);
-        oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
-        trackSource(osc);
-        osc.start(time);
-        osc.stop(time + 0.03);
-        const buf = c.createBuffer(1, c.sampleRate * 0.03, c.sampleRate);
-        const noise = buf.getChannelData(0);
-        for (let i = 0; i < noise.length; i++)
-          noise[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / noise.length, 6);
-        const src = c.createBufferSource();
-        const nGain = c.createGain();
-        src.buffer = buf;
-        src.connect(nGain);
-        nGain.connect(getMasterGain());
-        nGain.gain.setValueAtTime(lerp(0.3, 0.5, level), time);
-        trackSource(src);
-        src.start(time);
-      },
-    };
-    (sounds[soundType] ?? sounds.click)();
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.connect(gain);
+    gain.connect(getMasterGain());
+    osc.frequency.value = lerp(1200, 1800, level);
+    gain.gain.setValueAtTime(lerp(0.6, 0.9, level), time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+    trackSource(osc);
+    osc.start(time);
+    osc.stop(time + 0.05);
   }
 
   return {
     start(
       b: number,
       beats: number,
-      sound: SoundId,
       accents: AccentLevel[],
       callback: (beatIndex: number) => void,
     ) {
@@ -236,7 +165,6 @@ function createAudioEngine() {
 
       bpm = b;
       beatsPerBar = beats;
-      soundType = sound;
       accentPattern =
         accents.length === beats ? accents : defaultBeatAccents(beats);
       onBeat = callback;
@@ -290,9 +218,6 @@ function createAudioEngine() {
       beatsPerBar = b;
       currentBeat = 0;
     },
-    setSound(s: SoundId) {
-      soundType = s;
-    },
     setAccents(accents: AccentLevel[]) {
       accentPattern =
         accents.length === beatsPerBar
@@ -322,13 +247,6 @@ function useTapTempo(onTap: (bpm: number) => void) {
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
-const SOUNDS: { id: SoundId; label: string }[] = [
-  { id: "click", label: "Click" },
-  { id: "wood", label: "Wood" },
-  { id: "hi_hat", label: "Hi-Hat" },
-  { id: "rim", label: "Rimshot" },
-];
-
 const TIME_SIGS = [2, 3, 4, 5, 6, 7, 8] as const;
 
 const MAX_TIMER_SEC = 60 * 60;
@@ -374,7 +292,6 @@ export default function Metronome() {
   const [beatAccents, setBeatAccents] = useState<AccentLevel[]>(() =>
     defaultBeatAccents(4),
   );
-  const [sound, setSound] = useState<SoundId>("click");
   const [timerPresetSec, setTimerPresetSec] = useState(0);
   const [timerRemainingSec, setTimerRemainingSec] = useState<number | null>(
     null,
@@ -441,7 +358,6 @@ export default function Metronome() {
     engine.start(
       bpmRef.current,
       beats,
-      sound,
       beatAccentsRef.current,
       (beatIndex) => {
         onBeatRef.current(beatIndex);
@@ -456,7 +372,7 @@ export default function Metronome() {
         return prev;
       });
     }
-  }, [beats, sound, stopPlayback]);
+  }, [beats, stopPlayback]);
 
   // Countdown only while playing; pause freezes remaining time.
   useEffect(() => {
@@ -493,9 +409,6 @@ export default function Metronome() {
   useEffect(() => {
     if (playingRef.current) engine.setBeats(beats);
   }, [beats]);
-  useEffect(() => {
-    if (playingRef.current) engine.setSound(sound);
-  }, [sound]);
 
   useEffect(() => {
     if (playingRef.current) engine.setAccents(beatAccents);
@@ -689,8 +602,6 @@ export default function Metronome() {
           border: none;
         }
         .beat-pip-btn:hover { filter: brightness(1.15); }
-        .btn-sound { transition: all 0.12s; }
-        .btn-sound:hover { background: #2a2a2c !important; }
         .play-btn { transition: all 0.12s; }
         .play-btn:hover { transform: scale(1.04); }
         .play-btn:active { transform: scale(0.97); }
@@ -1016,44 +927,6 @@ export default function Metronome() {
               }}
             >
               {n}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <div
-          style={{
-            fontSize: 10,
-            letterSpacing: 4,
-            color: "#444",
-            marginBottom: 10,
-            textAlign: "center",
-          }}
-        >
-          SOUND
-        </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          {SOUNDS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="btn-sound"
-              onClick={() => setSound(s.id)}
-              style={{
-                padding: "8px 14px",
-                background: sound === s.id ? "#e8c97a" : "#141416",
-                border: `1px solid ${sound === s.id ? "#e8c97a" : "#2a2a2c"}`,
-                color: sound === s.id ? "#0e0e0f" : "#666",
-                fontFamily: "'DM Mono', monospace",
-                fontSize: 10,
-                letterSpacing: 2,
-                borderRadius: 3,
-                cursor: "pointer",
-                transition: "all 0.12s",
-              }}
-            >
-              {s.label.toUpperCase()}
             </button>
           ))}
         </div>

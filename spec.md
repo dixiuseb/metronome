@@ -55,7 +55,7 @@ Beat callbacks for the UI remain on timers derived from scheduled times (`setTim
 
 ### Sounds
 
-Four IDs, all **synthesized**: `click`, `wood`, `hi_hat`, `rim` (oscillators and short filtered noise buffers—no bundled samples).
+One **synthesized click** — short oscillator blip with accent levels mapped to pitch and gain. Real samples (wood block, etc.) are deferred; see `roadmap.md` v1.x.
 
 ---
 
@@ -75,7 +75,7 @@ Four IDs, all **synthesized**: `click`, `wood`, `hi_hat`, `rim` (oscillators and
 
 | Topic | Notes |
 |--------|--------|
-| **`useEffect([playing])` + engine** | **Removed.** Play/pause now call `engine.start()` / `engine.stop()` directly from the button handler (user gesture + no effect cleanup races). Parameter sync while playing uses effects keyed only on `bpm` / `beats` / `sound`, not `playing`. |
+| **`useEffect([playing])` + engine** | **Removed.** Play/pause now call `engine.start()` / `engine.stop()` directly from the button handler (user gesture + no effect cleanup races). Parameter sync while playing uses effects keyed only on `bpm` / `beats`, not `playing`. |
 | **Module singleton engine** | One module-level instance is fine for a single route. `stopScheduler()` stops queued sources, **clears pending beat `setTimeout`s**, disconnects nodes, and bumps a **generation** counter so stale callbacks no-op. |
 | **Visual pulse** | Beat pips only; optional full-frame flash deferred. |
 | **Mobile / iOS** | `AudioContext` may start suspended; `resume()` before scheduling. **Silent switch:** loop inaudible HTML `<audio>` during playback so Web Audio uses the media channel (best-effort; not guaranteed on every iOS version). |
