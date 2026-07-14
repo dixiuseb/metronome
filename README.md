@@ -45,6 +45,7 @@ Built for practice, not harvesting data. No account is required for the app visi
 
 ## For developers & contributors
 
+- **[CAPACITOR.md](CAPACITOR.md)** — Native iOS build, sync, and simulator workflow
 - **[spec.md](spec.md)** — Stack, codebase layout, product guardrails you should follow when implementing, and technical specs for planned features
 - **[roadmap.md](roadmap.md)** — What’s shipped vs next, MVP scope, stretch ideas, suggested build order
 

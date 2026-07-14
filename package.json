@@ -5,16 +5,23 @@
   "scripts": {
     "dev": "next dev",
     "build": "npm run generate-icons && next build",
+    "build:capacitor": "CAPACITOR_BUILD=1 npm run generate-icons && CAPACITOR_BUILD=1 next build",
     "start": "next start",
     "lint": "eslint",
-    "generate-icons": "node scripts/generate-icons.mjs"
+    "generate-icons": "node scripts/generate-icons.mjs",
+    "cap:sync": "cap sync",
+    "cap:ios": "cap open ios",
+    "cap:run:ios": "npm run build:capacitor && cap sync ios && cap run ios"
   },
   "dependencies": {
+    "@capacitor/core": "^8.4.2",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
     "@serwist/turbopack": "^9.5.11",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

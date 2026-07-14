@@ -86,12 +86,12 @@ No new feature categories here unless device testing exposes a clear gap.
 
 **Goal:** Ship Pocket Click on the App Store (and optionally Play Store) using **Capacitor** to wrap the existing Next.js app—not a rewrite.
 
-| Phase | Task |
-|-------|------|
-| Scaffold | `@capacitor/core`, iOS/Android projects, static export or bundled web assets |
-| Native audio | iOS **playback** audio session so clicks work with the hardware mute switch (replaces PWA silent-loop hack) |
-| Store polish | Splash, privacy policy, TestFlight → App Store review |
-| Android | Same wrapper; no hardware mute switch issue, but shared packaging path |
+| Phase | Task | Status |
+|-------|------|:------:|
+| Scaffold | `@capacitor/core`, iOS project, static export (`npm run build:capacitor`) | Done |
+| Native audio | iOS **playback** audio session so clicks work with the hardware mute switch (replaces PWA silent-loop hack) | Pending |
+| Store polish | Splash, privacy policy, TestFlight → App Store review | Pending |
+| Android | Same wrapper; no hardware mute switch issue, but shared packaging path | Pending |
 
 PWA work (manifest, icons, Serwist) is **not throwaway**—icons and offline behavior carry over; the service worker is web/PWA-specific and may be simplified or dropped in the native shell.
 
