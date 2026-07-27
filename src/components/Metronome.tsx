@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  activateNativeAudioSession,
+  isNativeIos,
+} from "@/lib/audioSession";
 
 /** 0 = normal, 1 = medium accent, 2 = strong accent */
 type AccentLevel = 0 | 1 | 2;
@@ -44,9 +48,17 @@ function startMediaChannel() {
 }
 
 function stopMediaChannel() {
+  if (isNativeIos()) return;
   if (!mediaChannelAudio || mediaChannelAudio.paused) return;
   mediaChannelAudio.pause();
   mediaChannelAudio.currentTime = 0;
+}
+
+/** PWA: silent-loop hack. Native iOS: AVAudioSession via Capacitor plugin. */
+function prepareAudioForPlay(): Promise<void> {
+  if (isNativeIos()) return activateNativeAudioSession();
+  startMediaChannel();
+  return Promise.resolve();
 }
 
 // ─── Audio Engine ───────────────────────────────────────────────────────────
@@ -169,9 +181,7 @@ function createAudioEngine() {
         accents.length === beats ? accents : defaultBeatAccents(beats);
       onBeat = callback;
 
-      startMediaChannel();
-
-      void unlockAudio().then((c) => {
+      void prepareAudioForPlay().then(() => unlockAudio()).then((c) => {
         if (sessionGeneration !== playbackGeneration) return;
 
         currentBeat = 0;
@@ -434,7 +444,7 @@ export default function Metronome() {
   }, []);
 
   const handleTap = useTapTempo((tappedBpm) => {
-    startMediaChannel();
+    void prepareAudioForPlay();
     void engine.unlockAudio();
     setBpm(tappedBpm);
     if (playing) engine.setBpm(tappedBpm);

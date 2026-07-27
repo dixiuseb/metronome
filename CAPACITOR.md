@@ -47,7 +47,11 @@ npm run build:capacitor && npx cap sync ios
 
 ## Next steps (see `roadmap.md`)
 
-1. Native iOS audio session (mute switch)
+1. ~~Native iOS audio session (mute switch)~~ — `AudioSession` Capacitor plugin
 2. Splash screen + app icons in Xcode
 3. Privacy policy + About screen
 4. TestFlight → App Store
+
+### Native audio (iOS)
+
+`AVAudioSession` category **playback** is set at launch (`AppDelegate`) and again when you tap play (`AudioSession` plugin). The PWA silent-loop hack is skipped in the native app.
