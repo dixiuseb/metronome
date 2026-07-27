@@ -78,7 +78,7 @@ One **synthesized click** — short oscillator blip with accent levels mapped to
 | **`useEffect([playing])` + engine** | **Removed.** Play/pause now call `engine.start()` / `engine.stop()` directly from the button handler (user gesture + no effect cleanup races). Parameter sync while playing uses effects keyed only on `bpm` / `beats`, not `playing`. |
 | **Module singleton engine** | One module-level instance is fine for a single route. `stopScheduler()` stops queued sources, **clears pending beat `setTimeout`s**, disconnects nodes, and bumps a **generation** counter so stale callbacks no-op. |
 | **Visual pulse** | Beat pips only; optional full-frame flash deferred. |
-| **Mobile / iOS** | `AudioContext` may start suspended; `resume()` before scheduling. **PWA silent switch:** loop inaudible HTML `<audio>` during playback. **Native iOS:** `AudioSession` Capacitor plugin sets playback category (no silent-loop hack). |
+| **Mobile / iOS** | `AudioContext` resume before scheduling. **Silent switch:** `navigator.audioSession.type = 'playback'` (iOS 17+) + silent HTML audio loop. Native plugin sets app-level `AVAudioSession` but WKWebView Web Audio uses the web session. |
 | **Fonts** | Bebas Neue + DM Mono still loaded via **`@import` inside the component**. Prefer **`next/font/google`** to reduce CLS and satisfy Next idioms—see roadmap. |
 
 ---

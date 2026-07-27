@@ -54,4 +54,12 @@ npm run build:capacitor && npx cap sync ios
 
 ### Native audio (iOS)
 
-`AVAudioSession` category **playback** is set at launch (`AppDelegate`) and again when you tap play (`AudioSession` plugin). The PWA silent-loop hack is skipped in the native app.
+WKWebView Web Audio does **not** share the app’s `AVAudioSession` — setting playback category in Swift alone is not enough.
+
+On play, the web layer:
+
+1. Sets `navigator.audioSession.type = 'playback'` (iOS 17+)
+2. Starts the silent HTML audio loop (same as PWA)
+3. Calls the native `AudioSession` plugin (app-level, supplementary)
+
+The Xcode `WebContent AudioSession::beginInterruption` messages were from activating native audio before the WebView session was ready; early activation in `AppDelegate` was removed.

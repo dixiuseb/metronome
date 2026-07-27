@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   activateNativeAudioSession,
-  isNativeIos,
+  setWebAudioPlaybackSession,
 } from "@/lib/audioSession";
 
 /** 0 = normal, 1 = medium accent, 2 = strong accent */
@@ -48,17 +48,19 @@ function startMediaChannel() {
 }
 
 function stopMediaChannel() {
-  if (isNativeIos()) return;
   if (!mediaChannelAudio || mediaChannelAudio.paused) return;
   mediaChannelAudio.pause();
   mediaChannelAudio.currentTime = 0;
 }
 
-/** PWA: silent-loop hack. Native iOS: AVAudioSession via Capacitor plugin. */
+/**
+ * iOS (PWA + Capacitor): Web Audio runs in WKWebView's own session — native
+ * AVAudioSession alone is not enough. Use navigator.audioSession + silent loop.
+ */
 function prepareAudioForPlay(): Promise<void> {
-  if (isNativeIos()) return activateNativeAudioSession();
+  setWebAudioPlaybackSession();
   startMediaChannel();
-  return Promise.resolve();
+  return activateNativeAudioSession();
 }
 
 // ─── Audio Engine ───────────────────────────────────────────────────────────
