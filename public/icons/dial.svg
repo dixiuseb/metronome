@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- 40 radial lines matching your exact 1024x1024 canvas and coordinates -->
+	<rect width="1024" height="1024" fill="black"/>
+  <rect width="150" height="400" x="152" y="512" fill="#EBCB5E"/>
+  <g transform="translate(0, -60)">
+
+  <circle cx="512" cy="512" r="360" fill="#EBCB5E" stroke="black" stroke-width="14"/>  
+
+
+  <path transform="rotate(0, 512, 512)" d="M 512 512 L 512 160 A 352 352 0 1 0 864 512 Z" fill="gray" />
+  <circle cx="512" cy="512" r="210" fill="black" />
+  <!-- circle cx="512" cy="512" r="180" fill="#20201F" -->  
+  <circle cx="512" cy="512" r="100" fill="black"/>  
+
+<!--
+<g stroke="black" stroke-width="10" stroke-linecap="round">
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(0, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(27, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(54, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(81, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(135, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(162, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(198, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(225, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(252, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(279, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(306, 512, 512)" />
+    <line x1="512.0" y1="175.0" x2="512.0" y2="230.0" transform="rotate(333, 512, 512)" />
+
+  </g>
+  <line x1="512.0" y1="175.0" x2="512.0" y2="270.0" stroke="red" stroke-width="14" transform="rotate(108, 512, 512)"/>
+-->
+</g>
+</svg>

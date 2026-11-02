@@ -39,6 +39,36 @@ npm run build
 npm start
 ```
 
+## Run on iOS (simulator or device)
+
+Native app via **Capacitor**. Run commands from the **repo root** (where `capacitor.config.ts` lives). Requires macOS and **Xcode**.
+
+**Simulator (one command):**
+
+```bash
+npm run cap:run:ios
+```
+
+**Or step by step:**
+
+```bash
+npm run build:capacitor   # static export → out/
+npx cap sync ios          # copy web assets into ios/
+npm run cap:ios           # open Xcode
+```
+
+In Xcode: choose a simulator (e.g. iPhone 16) → **Run** (▶).
+
+After you change the web app:
+
+```bash
+npm run build:capacitor && npx cap sync ios
+```
+
+Then Run again in Xcode (or `npm run cap:run:ios`).
+
+The **iOS Simulator has no hardware mute switch**—use a physical iPhone to test silent-mode audio. More detail (signing, TestFlight): **[CAPACITOR.md](CAPACITOR.md)**.
+
 ## Privacy & data
 
 Built for practice, not harvesting data. No account is required for the app vision; keep it that way as features grow unless you consciously choose otherwise.
