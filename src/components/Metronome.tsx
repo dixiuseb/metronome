@@ -5,6 +5,8 @@ import {
   activateNativeAudioSession,
   setWebAudioPlaybackSession,
 } from "@/lib/audioSession";
+import { GUIDE_DISMISSED_KEY } from "@/lib/appInfo";
+import HelpOverlay from "@/components/HelpOverlay";
 
 /** 0 = normal, 1 = medium accent, 2 = strong accent */
 type AccentLevel = 0 | 1 | 2;
@@ -311,6 +313,7 @@ export default function Metronome() {
   const [activeBeat, setActiveBeat] = useState(-1);
   const [dragging, setDragging] = useState(false);
   const [timerDragging, setTimerDragging] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const dragStart = useRef<{ y: number; bpm: number } | null>(null);
   const timerDragStart = useRef<{ y: number; sec: number } | null>(null);
   const bpmRef = useRef(bpm);
@@ -320,6 +323,23 @@ export default function Metronome() {
   const timerPresetSecRef = useRef(timerPresetSec);
   const beatAccentsRef = useRef(beatAccents);
   const stopPlaybackRef = useRef<() => void>(() => {});
+
+  const dismissHelp = useCallback(() => {
+    setHelpOpen(false);
+    try {
+      localStorage.setItem(GUIDE_DISMISSED_KEY, "1");
+    } catch {
+      /* private browsing */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(GUIDE_DISMISSED_KEY)) setHelpOpen(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     bpmRef.current = bpm;
@@ -581,6 +601,7 @@ export default function Metronome() {
   return (
     <div
       style={{
+        position: "relative",
         height: "100%",
         minHeight: "100dvh",
         maxHeight: "100dvh",
@@ -597,6 +618,8 @@ export default function Metronome() {
         touchAction: "none",
       }}
     >
+      <HelpOverlay open={helpOpen} onClose={dismissHelp} />
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
         * { box-sizing: border-box; }
@@ -954,6 +977,31 @@ export default function Metronome() {
       >
         POCKET CLICK — NO ADS. NO BS.
       </div>
+
+      <button
+        type="button"
+        onClick={() => setHelpOpen(true)}
+        aria-label="How to use and support"
+        style={{
+          position: "absolute",
+          bottom: "max(16px, env(safe-area-inset-bottom, 0px))",
+          right: "max(20px, env(safe-area-inset-right, 0px))",
+          zIndex: 10,
+          width: 40,
+          height: 40,
+          background: "#141416",
+          border: "1px solid #2a2a2c",
+          borderRadius: 3,
+          color: "#666",
+          fontFamily: "'DM Mono', monospace",
+          fontSize: 14,
+          fontWeight: 500,
+          cursor: "pointer",
+          letterSpacing: 0,
+        }}
+      >
+        ?
+      </button>
     </div>
   );
 }
