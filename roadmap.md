@@ -75,7 +75,7 @@ Informed by **how it feels in use**, not speculation. Candidate bucket—pick on
 | **Design / UX** | Typography (`next/font`), spacing, touch targets, color tweaks, idle vs playing states |
 | **Ergonomics** | Spacebar play/pause, master volume |
 | **Quality** | Strict Mode / engine edge cases already handled; any Safari-specific fixes from checklist |
-| **iOS audio (PWA)** | Silent-switch workaround via media channel; replace with native `AVAudioSession` in Capacitor |
+| **iOS audio (PWA)** | Silent-switch workaround via media channel; native app uses `AudioSession` plugin instead |
 | **Sound samples** | Optional later — v1 uses one synthesized click only |
 
 No new feature categories here unless device testing exposes a clear gap.

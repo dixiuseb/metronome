@@ -12,7 +12,7 @@ Related docs: **[README.md](README.md)** (user-facing intro), **[roadmap.md](roa
 - **Tailwind CSS v4** (global styling; large parts of the metronome still use inline styles from the prototype)
 - **PWA:** `@serwist/turbopack` service worker, `src/app/manifest.ts`, icons in `public/icons/`
 - **PWA first:** device validation and installable demo over HTTPS
-- **Capacitor** (planned) — native wrapper for App Store / Play Store; native `AVAudioSession` on iOS for reliable playback with mute switch
+- **Capacitor** — iOS native shell; `AudioSession` plugin sets `AVAudioSession` playback category
 
 ---
 
@@ -78,7 +78,7 @@ One **synthesized click** — short oscillator blip with accent levels mapped to
 | **`useEffect([playing])` + engine** | **Removed.** Play/pause now call `engine.start()` / `engine.stop()` directly from the button handler (user gesture + no effect cleanup races). Parameter sync while playing uses effects keyed only on `bpm` / `beats`, not `playing`. |
 | **Module singleton engine** | One module-level instance is fine for a single route. `stopScheduler()` stops queued sources, **clears pending beat `setTimeout`s**, disconnects nodes, and bumps a **generation** counter so stale callbacks no-op. |
 | **Visual pulse** | Beat pips only; optional full-frame flash deferred. |
-| **Mobile / iOS** | `AudioContext` may start suspended; `resume()` before scheduling. **Silent switch:** loop inaudible HTML `<audio>` during playback so Web Audio uses the media channel (best-effort; not guaranteed on every iOS version). |
+| **Mobile / iOS** | `AudioContext` resume before scheduling. **Silent switch:** `navigator.audioSession.type = 'playback'` (iOS 17+) + silent HTML audio loop. Native plugin sets app-level `AVAudioSession` but WKWebView Web Audio uses the web session. |
 | **Fonts** | Bebas Neue + DM Mono still loaded via **`@import` inside the component**. Prefer **`next/font/google`** to reduce CLS and satisfy Next idioms—see roadmap. |
 
 ---

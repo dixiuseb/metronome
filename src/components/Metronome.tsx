@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  activateNativeAudioSession,
+  setWebAudioPlaybackSession,
+} from "@/lib/audioSession";
 
 /** 0 = normal, 1 = medium accent, 2 = strong accent */
 type AccentLevel = 0 | 1 | 2;
@@ -47,6 +51,16 @@ function stopMediaChannel() {
   if (!mediaChannelAudio || mediaChannelAudio.paused) return;
   mediaChannelAudio.pause();
   mediaChannelAudio.currentTime = 0;
+}
+
+/**
+ * iOS (PWA + Capacitor): Web Audio runs in WKWebView's own session — native
+ * AVAudioSession alone is not enough. Use navigator.audioSession + silent loop.
+ */
+function prepareAudioForPlay(): Promise<void> {
+  setWebAudioPlaybackSession();
+  startMediaChannel();
+  return activateNativeAudioSession();
 }
 
 // ─── Audio Engine ───────────────────────────────────────────────────────────
@@ -169,9 +183,7 @@ function createAudioEngine() {
         accents.length === beats ? accents : defaultBeatAccents(beats);
       onBeat = callback;
 
-      startMediaChannel();
-
-      void unlockAudio().then((c) => {
+      void prepareAudioForPlay().then(() => unlockAudio()).then((c) => {
         if (sessionGeneration !== playbackGeneration) return;
 
         currentBeat = 0;
@@ -434,7 +446,7 @@ export default function Metronome() {
   }, []);
 
   const handleTap = useTapTempo((tappedBpm) => {
-    startMediaChannel();
+    void prepareAudioForPlay();
     void engine.unlockAudio();
     setBpm(tappedBpm);
     if (playing) engine.setBpm(tappedBpm);
