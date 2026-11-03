@@ -42,7 +42,7 @@ npm run build:capacitor && npx cap sync ios
 
 ## Config
 
-- **`capacitor.config.ts`** — app id `com.pocketclick.app`, web dir `out/`
+- **`capacitor.config.ts`** — app id `com.pocketclickmetronome.app`, web dir `out/`
 - Change **`appId`** before App Store submission if you use a different bundle identifier
 
 ## Next steps (see `roadmap.md`)
