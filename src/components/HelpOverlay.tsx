@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
-import { APP_NAME, PRIVACY_PATH, SUPPORT_EMAIL } from "@/lib/appInfo";
+import { APP_NAME, PRIVACY_URL, SUPPORT_URL } from "@/lib/appInfo";
 
 type HelpOverlayProps = {
   open: boolean;
@@ -186,18 +185,21 @@ export default function HelpOverlay({ open, onClose }: HelpOverlayProps) {
           }}
         >
           <a
-            href={`mailto:${SUPPORT_EMAIL}`}
+            href={SUPPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{ color: "#e8e0d0", textDecoration: "none" }}
           >
-            Support — {SUPPORT_EMAIL}
+            Support
           </a>
-          <Link
-            href={PRIVACY_PATH}
-            onClick={onClose}
+          <a
+            href={PRIVACY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{ color: "#888", textDecoration: "underline" }}
           >
             Privacy policy
-          </Link>
+          </a>
         </div>
 
         <button
