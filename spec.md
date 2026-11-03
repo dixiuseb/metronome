@@ -12,7 +12,7 @@ Related docs: **[README.md](README.md)** (user-facing intro), **[roadmap.md](roa
 - **Tailwind CSS v4** (global styling; large parts of the metronome still use inline styles from the prototype)
 - **PWA:** `@serwist/turbopack` service worker, `src/app/manifest.ts`, icons in `public/icons/`
 - **PWA first:** device validation and installable demo over HTTPS
-- **Capacitor** — iOS native shell; `AudioSession` plugin sets `AVAudioSession` playback category
+- **Capacitor** — iOS native shell; `AudioSession` plugin sets `AVAudioSession` playback category; **background audio** for lock-screen / multitasking while playing
 
 ---
 
@@ -68,6 +68,7 @@ One **synthesized click** — short oscillator blip with accent levels mapped to
 | Beats/bar | Integers **2–8**; visually and audibly accented **beat 1** |
 | Tempo labels | Rough Italian-ish buckets driven by BPM (Larghetto → Prestissimo) |
 | Practice timer | Draggable M:SS next to play; 15s snap; pause freezes; auto-stop at zero |
+| Background play | Native app keeps clicking when locked or backgrounded (user must tap pause to stop) |
 | Per-beat accents | Pips cycle normal / medium / strong; audio + size reflect level |
 | PWA | Installable; Serwist precache; `/~offline` fallback; theme `#0e0e0f` |
 
@@ -79,6 +80,7 @@ One **synthesized click** — short oscillator blip with accent levels mapped to
 | **Module singleton engine** | One module-level instance is fine for a single route. `stopScheduler()` stops queued sources, **clears pending beat `setTimeout`s**, disconnects nodes, and bumps a **generation** counter so stale callbacks no-op. |
 | **Visual pulse** | Beat pips only; optional full-frame flash deferred. |
 | **Mobile / iOS** | `AudioContext` resume before scheduling. **Silent switch:** `navigator.audioSession.type = 'playback'` (iOS 17+) + silent HTML audio loop. Native plugin sets app-level `AVAudioSession` but WKWebView Web Audio uses the web session. |
+| **Background playback** | **Native iOS (Capacitor):** While playing, clicks continue with screen locked or app in background. Requires `UIBackgroundModes` → `audio`, `AVAudioSession` playback category, silent media loop + Web Audio lookahead extended when `document.hidden`. **PWA:** Best-effort only; iOS Safari may suspend web audio—store build is the supported path for lock-screen practice. |
 | **Fonts** | Bebas Neue + DM Mono still loaded via **`@import` inside the component**. Prefer **`next/font/google`** to reduce CLS and satisfy Next idioms—see roadmap. |
 
 ---

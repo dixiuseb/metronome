@@ -90,6 +90,7 @@ No new feature categories here unless device testing exposes a clear gap.
 |-------|------|:------:|
 | Scaffold | `@capacitor/core`, iOS project, static export (`npm run build:capacitor`) | Done |
 | Native audio | iOS **playback** audio session (`AudioSession` plugin + `AVAudioSession`) | Done |
+| Background audio | Lock screen / app switch while playing (native) | Done |
 | Store polish | Splash (basic filler), privacy policy, TestFlight → App Store review | In progress |
 | Android | Same wrapper; no hardware mute switch issue, but shared packaging path | Pending |
 

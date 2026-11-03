@@ -19,7 +19,7 @@ const TIPS: { title: string; body: string }[] = [
   },
   {
     title: "Play / pause",
-    body: "The center button starts and stops the click. Beat one is always accented.",
+    body: "The center button starts and stops the click. Beat one is always accented. While playing, the click keeps going if you lock the screen or switch apps (native app).",
   },
   {
     title: "Practice timer",

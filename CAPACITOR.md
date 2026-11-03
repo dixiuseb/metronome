@@ -63,3 +63,13 @@ On play, the web layer:
 3. Calls the native `AudioSession` plugin (app-level, supplementary)
 
 The Xcode `WebContent AudioSession::beginInterruption` messages were from activating native audio before the WebView session was ready; early activation in `AppDelegate` was removed.
+
+### Background playback (lock screen / multitasking)
+
+While the metronome is **playing**, clicks should continue if the user locks the phone or switches apps.
+
+**Apple Developer (App ID):** enable **Background Modes → Audio, AirPlay, and Picture in Picture** for `com.pocketclick.app` (matches `UIBackgroundModes` → `audio` in `Info.plist`).
+
+**Runtime:** `Info.plist` background audio mode, `AVAudioSession` playback category, silent HTML audio loop, Web Audio scheduler with a longer lookahead when the page is hidden, and `@capacitor/app` `appStateChange` + `visibilitychange` to re-assert the session.
+
+Test on a **physical device** (simulator background audio is unreliable).

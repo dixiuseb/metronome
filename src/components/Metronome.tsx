@@ -7,6 +7,10 @@ import {
 } from "@/lib/audioSession";
 import { GUIDE_DISMISSED_KEY } from "@/lib/appInfo";
 import HelpOverlay from "@/components/HelpOverlay";
+import {
+  maintainIosPlaybackSession,
+  watchPlaybackWhilePlaying,
+} from "@/lib/maintainPlayback";
 
 /** 0 = normal, 1 = medium accent, 2 = strong accent */
 type AccentLevel = 0 | 1 | 2;
@@ -84,6 +88,9 @@ function createAudioEngine() {
 
   const LOOKAHEAD = 25; // ms
   const SCHEDULE_AHEAD = 0.1; // seconds
+  /** Longer horizon when timers are throttled (screen locked / background). */
+  const BACKGROUND_SCHEDULE_AHEAD = 2.0; // seconds
+  let scheduleAheadHorizon = SCHEDULE_AHEAD;
 
   function getCtx(): AudioContext {
     if (!ctx) {
@@ -194,7 +201,7 @@ function createAudioEngine() {
         function scheduleBeats() {
           if (sessionGeneration !== playbackGeneration) return;
 
-          while (nextBeatTime < c.currentTime + SCHEDULE_AHEAD) {
+          while (nextBeatTime < c.currentTime + scheduleAheadHorizon) {
             const beatIndex = currentBeat;
             const accentLevel = accentPattern[beatIndex] ?? 0;
             const scheduledTime = nextBeatTime;
@@ -239,6 +246,17 @@ function createAudioEngine() {
           : defaultBeatAccents(beatsPerBar);
     },
     unlockAudio,
+    maintainPlayback() {
+      const extended =
+        typeof document !== "undefined" &&
+        document.visibilityState === "hidden";
+      scheduleAheadHorizon = extended
+        ? BACKGROUND_SCHEDULE_AHEAD
+        : SCHEDULE_AHEAD;
+      startMediaChannel();
+      void maintainIosPlaybackSession();
+      return unlockAudio();
+    },
   };
 }
 
@@ -445,6 +463,15 @@ export default function Metronome() {
   useEffect(() => {
     if (playingRef.current) engine.setAccents(beatAccents);
   }, [beatAccents]);
+
+  useEffect(() => {
+    if (!playing) return;
+    const maintain = () => {
+      void engine.maintainPlayback();
+    };
+    maintain();
+    return watchPlaybackWhilePlaying(() => playingRef.current, maintain);
+  }, [playing]);
 
   const handleBeatsChange = useCallback((n: number) => {
     setBeats(n);

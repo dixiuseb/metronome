@@ -22,7 +22,11 @@ public class AudioSessionPlugin: CAPPlugin, CAPBridgedPlugin {
 enum AudioSessionSupport {
     static func activatePlayback() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try session.setCategory(
+            .playback,
+            mode: .default,
+            options: [.mixWithOthers, .allowBluetoothA2DP]
+        )
         try session.setActive(true)
     }
 }
