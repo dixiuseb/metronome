@@ -1,11 +1,10 @@
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
-import { activateNativeAudioSession, setWebAudioPlaybackSession } from "@/lib/audioSession";
+import { setWebAudioPlaybackSession } from "@/lib/audioSession";
 
-/** Re-assert iOS playback session + silent media channel while playing in background. */
-export function maintainIosPlaybackSession(): Promise<void> {
+/** Re-assert WebKit playback type while playing in background (avoid spamming native setActive). */
+export function maintainWebAudioSession(): void {
   setWebAudioPlaybackSession();
-  return activateNativeAudioSession();
 }
 
 /**

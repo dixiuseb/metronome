@@ -29,5 +29,7 @@ export function setWebAudioPlaybackSession(): void {
 /** App-level AVAudioSession; supplementary — Web Audio still needs web-side session + media loop. */
 export function activateNativeAudioSession(): Promise<void> {
   if (!isNativeIos()) return Promise.resolve();
-  return NativeAudioSession.activate();
+  return NativeAudioSession.activate().catch(() => {
+    /* Native setActive often fails when WKWebView already owns audio; web path still works. */
+  });
 }
