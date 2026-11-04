@@ -81,6 +81,7 @@ One **synthesized click** — short oscillator blip with accent levels mapped to
 | **Visual pulse** | Beat pips only; optional full-frame flash deferred. |
 | **Mobile / iOS** | `AudioContext` resume before scheduling. **Silent switch:** `navigator.audioSession.type = 'playback'` (iOS 17+) + silent HTML audio loop. Native plugin sets app-level `AVAudioSession` but WKWebView Web Audio uses the web session. |
 | **Background playback** | **Native iOS (Capacitor):** While playing, clicks continue with screen locked or app in background. Requires `UIBackgroundModes` → `audio`, `AVAudioSession` playback category, silent media loop + Web Audio lookahead extended when `document.hidden`. **PWA:** Best-effort only; iOS Safari may suspend web audio—store build is the supported path for lock-screen practice. |
+| **Lock screen controls** | **Media Session API** (`src/lib/mediaSession.ts`): title **Pocket Click**, app icon artwork, BPM as artist line; play/pause handlers tied to metronome transport (replaces Capacitor `localhost` label from the silent media loop). |
 | **Fonts** | Bebas Neue + DM Mono still loaded via **`@import` inside the component**. Prefer **`next/font/google`** to reduce CLS and satisfy Next idioms—see roadmap. |
 
 ---

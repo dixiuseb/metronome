@@ -8,9 +8,13 @@ import {
 import { GUIDE_DISMISSED_KEY } from "@/lib/appInfo";
 import HelpOverlay from "@/components/HelpOverlay";
 import {
-  maintainIosPlaybackSession,
+  maintainWebAudioSession,
   watchPlaybackWhilePlaying,
 } from "@/lib/maintainPlayback";
+import {
+  bindMediaSessionTransport,
+  updateMediaSession,
+} from "@/lib/mediaSession";
 
 /** 0 = normal, 1 = medium accent, 2 = strong accent */
 type AccentLevel = 0 | 1 | 2;
@@ -254,7 +258,7 @@ function createAudioEngine() {
         ? BACKGROUND_SCHEDULE_AHEAD
         : SCHEDULE_AHEAD;
       startMediaChannel();
-      void maintainIosPlaybackSession();
+      maintainWebAudioSession();
       return unlockAudio();
     },
   };
@@ -399,11 +403,8 @@ export default function Metronome() {
     stopPlaybackRef.current = stopPlayback;
   }, [stopPlayback]);
 
-  const togglePlay = useCallback(() => {
-    if (playingRef.current) {
-      stopPlayback();
-      return;
-    }
+  const startPlayback = useCallback(() => {
+    if (playingRef.current) return;
 
     engine.start(
       bpmRef.current,
@@ -422,7 +423,33 @@ export default function Metronome() {
         return prev;
       });
     }
-  }, [beats, stopPlayback]);
+  }, [beats]);
+
+  const togglePlay = useCallback(() => {
+    if (playingRef.current) {
+      stopPlayback();
+      return;
+    }
+    startPlayback();
+  }, [stopPlayback, startPlayback]);
+
+  useEffect(() => {
+    return bindMediaSessionTransport({
+      onPlay: () => startPlayback(),
+      onPause: () => {
+        if (playingRef.current) stopPlayback();
+      },
+    });
+  }, [startPlayback, stopPlayback]);
+
+  useEffect(() => {
+    if (!playing) {
+      updateMediaSession(false, bpm);
+      return;
+    }
+    // iOS attaches Now Playing to the silent media element after it is running.
+    void prepareAudioForPlay().then(() => updateMediaSession(true, bpm));
+  }, [playing, bpm]);
 
   // Countdown only while playing; pause freezes remaining time.
   useEffect(() => {
