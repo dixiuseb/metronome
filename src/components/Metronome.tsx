@@ -37,6 +37,13 @@ const SILENT_MP3 =
 
 let mediaChannelAudio: HTMLAudioElement | null = null;
 
+function disposeMediaChannelElement() {
+  if (!mediaChannelAudio) return;
+  mediaChannelAudio.pause();
+  mediaChannelAudio.remove();
+  mediaChannelAudio = null;
+}
+
 function startMediaChannel() {
   if (typeof document === "undefined") return;
   if (!mediaChannelAudio) {
@@ -69,6 +76,8 @@ function stopMediaChannel() {
  */
 function prepareAudioForPlay(): Promise<void> {
   setWebAudioPlaybackSession();
+  // Recycle stale loop after another app used audio (Spotify, etc.). Skip on first play.
+  if (mediaChannelAudio) disposeMediaChannelElement();
   startMediaChannel();
   return activateNativeAudioSession();
 }
@@ -118,6 +127,13 @@ function createAudioEngine() {
     return masterGain;
   }
 
+  function resetAudioContextAfterInterruption() {
+    if (!ctx) return;
+    void ctx.close().catch(() => {});
+    ctx = null;
+    masterGain = null;
+  }
+
   /** iOS/Safari: resume must finish before scheduling; silent buffer helps unlock. */
   function unlockAudio(): Promise<AudioContext> {
     const c = getCtx();
@@ -127,7 +143,8 @@ function createAudioEngine() {
     src.connect(getMasterGain());
     src.start(0);
     src.stop(0);
-    return c.state === "suspended" ? c.resume().then(() => c) : Promise.resolve(c);
+    if (c.state === "running") return Promise.resolve(c);
+    return c.resume().then(() => c);
   }
 
   function trackSource(node: AudioScheduledSourceNode) {
@@ -196,7 +213,7 @@ function createAudioEngine() {
         accents.length === beats ? accents : defaultBeatAccents(beats);
       onBeat = callback;
 
-      void prepareAudioForPlay().then(() => unlockAudio()).then((c) => {
+      const runScheduler = (c: AudioContext) => {
         if (sessionGeneration !== playbackGeneration) return;
 
         currentBeat = 0;
@@ -229,7 +246,14 @@ function createAudioEngine() {
         }
 
         scheduleBeats();
-      });
+      };
+
+      void prepareAudioForPlay()
+        .then(() => unlockAudio())
+        .then(runScheduler, () => {
+          resetAudioContextAfterInterruption();
+          return unlockAudio().then(runScheduler);
+        });
     },
     stop() {
       stopScheduler();
@@ -447,7 +471,6 @@ export default function Metronome() {
       updateMediaSession(false, bpm);
       return;
     }
-    // iOS attaches Now Playing to the silent media element after it is running.
     void prepareAudioForPlay().then(() => updateMediaSession(true, bpm));
   }, [playing, bpm]);
 
