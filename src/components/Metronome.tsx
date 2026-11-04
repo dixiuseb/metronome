@@ -8,6 +8,10 @@ import {
 import { GUIDE_DISMISSED_KEY } from "@/lib/appInfo";
 import HelpOverlay from "@/components/HelpOverlay";
 import {
+  consumePlayRecoveryAfterBackground,
+  watchBackgroundForAudioRecovery,
+} from "@/lib/audioRecovery";
+import {
   maintainWebAudioSession,
   watchPlaybackWhilePlaying,
 } from "@/lib/maintainPlayback";
@@ -36,6 +40,13 @@ const SILENT_MP3 =
   "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAADAAAGhgBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVWqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqr///////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRAmHAAAAAAD/+xDEAAvAAAGkAAAAIAAANIAAAARMQU1FMy45OC4xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//uQZAAAAAGkAAAAAAAA0gAAAAAAABpAGkqJAAAc0gAAABjBExBTUUzLjEyMDKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqv/7kGQADAPAAAGkAAAAIAAANIAAAARMQU1FMy44LDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV";
 
 let mediaChannelAudio: HTMLAudioElement | null = null;
+
+function disposeMediaChannelElement() {
+  if (!mediaChannelAudio) return;
+  mediaChannelAudio.pause();
+  mediaChannelAudio.remove();
+  mediaChannelAudio = null;
+}
 
 function startMediaChannel() {
   if (typeof document === "undefined") return;
@@ -67,8 +78,9 @@ function stopMediaChannel() {
  * iOS (PWA + Capacitor): Web Audio runs in WKWebView's own session — native
  * AVAudioSession alone is not enough. Use navigator.audioSession + silent loop.
  */
-function prepareAudioForPlay(): Promise<void> {
+function prepareAudioForPlay(deepRecovery = false): Promise<void> {
   setWebAudioPlaybackSession();
+  if (deepRecovery || mediaChannelAudio) disposeMediaChannelElement();
   startMediaChannel();
   return activateNativeAudioSession();
 }
@@ -118,6 +130,13 @@ function createAudioEngine() {
     return masterGain;
   }
 
+  function resetAudioContextAfterInterruption() {
+    if (!ctx) return;
+    void ctx.close().catch(() => {});
+    ctx = null;
+    masterGain = null;
+  }
+
   /** iOS/Safari: resume must finish before scheduling; silent buffer helps unlock. */
   function unlockAudio(): Promise<AudioContext> {
     const c = getCtx();
@@ -127,7 +146,8 @@ function createAudioEngine() {
     src.connect(getMasterGain());
     src.start(0);
     src.stop(0);
-    return c.state === "suspended" ? c.resume().then(() => c) : Promise.resolve(c);
+    if (c.state === "running") return Promise.resolve(c);
+    return c.resume().then(() => c);
   }
 
   function trackSource(node: AudioScheduledSourceNode) {
@@ -196,7 +216,7 @@ function createAudioEngine() {
         accents.length === beats ? accents : defaultBeatAccents(beats);
       onBeat = callback;
 
-      void prepareAudioForPlay().then(() => unlockAudio()).then((c) => {
+      const runScheduler = (c: AudioContext) => {
         if (sessionGeneration !== playbackGeneration) return;
 
         currentBeat = 0;
@@ -229,7 +249,17 @@ function createAudioEngine() {
         }
 
         scheduleBeats();
-      });
+      };
+
+      const deepRecovery = consumePlayRecoveryAfterBackground();
+      if (deepRecovery) resetAudioContextAfterInterruption();
+
+      void prepareAudioForPlay(deepRecovery)
+        .then(() => unlockAudio())
+        .then(runScheduler, () => {
+          resetAudioContextAfterInterruption();
+          return unlockAudio().then(runScheduler);
+        });
     },
     stop() {
       stopScheduler();
@@ -443,13 +473,10 @@ export default function Metronome() {
   }, [startPlayback, stopPlayback]);
 
   useEffect(() => {
-    if (!playing) {
-      updateMediaSession(false, bpm);
-      return;
-    }
-    // iOS attaches Now Playing to the silent media element after it is running.
-    void prepareAudioForPlay().then(() => updateMediaSession(true, bpm));
+    updateMediaSession(playing, bpm);
   }, [playing, bpm]);
+
+  useEffect(() => watchBackgroundForAudioRecovery(), []);
 
   // Countdown only while playing; pause freezes remaining time.
   useEffect(() => {
