@@ -8,6 +8,10 @@ import {
 import { GUIDE_DISMISSED_KEY } from "@/lib/appInfo";
 import HelpOverlay from "@/components/HelpOverlay";
 import {
+  consumePlayRecoveryAfterBackground,
+  watchBackgroundForAudioRecovery,
+} from "@/lib/audioRecovery";
+import {
   maintainWebAudioSession,
   watchPlaybackWhilePlaying,
 } from "@/lib/maintainPlayback";
@@ -74,10 +78,9 @@ function stopMediaChannel() {
  * iOS (PWA + Capacitor): Web Audio runs in WKWebView's own session — native
  * AVAudioSession alone is not enough. Use navigator.audioSession + silent loop.
  */
-function prepareAudioForPlay(): Promise<void> {
+function prepareAudioForPlay(deepRecovery = false): Promise<void> {
   setWebAudioPlaybackSession();
-  // Recycle stale loop after another app used audio (Spotify, etc.). Skip on first play.
-  if (mediaChannelAudio) disposeMediaChannelElement();
+  if (deepRecovery || mediaChannelAudio) disposeMediaChannelElement();
   startMediaChannel();
   return activateNativeAudioSession();
 }
@@ -248,7 +251,10 @@ function createAudioEngine() {
         scheduleBeats();
       };
 
-      void prepareAudioForPlay()
+      const deepRecovery = consumePlayRecoveryAfterBackground();
+      if (deepRecovery) resetAudioContextAfterInterruption();
+
+      void prepareAudioForPlay(deepRecovery)
         .then(() => unlockAudio())
         .then(runScheduler, () => {
           resetAudioContextAfterInterruption();
@@ -467,12 +473,10 @@ export default function Metronome() {
   }, [startPlayback, stopPlayback]);
 
   useEffect(() => {
-    if (!playing) {
-      updateMediaSession(false, bpm);
-      return;
-    }
-    void prepareAudioForPlay().then(() => updateMediaSession(true, bpm));
+    updateMediaSession(playing, bpm);
   }, [playing, bpm]);
+
+  useEffect(() => watchBackgroundForAudioRecovery(), []);
 
   // Countdown only while playing; pause freezes remaining time.
   useEffect(() => {
